@@ -60,6 +60,9 @@ void loop() {
 - `enableBroadcastAuth` (default `true`): HMAC-tagged broadcasts with replay checks.
 - `maxQueueLength` (default `16`): outbound queue length.
 - `maxPayloadBytes` (default `1470`): max payload per send (ESP-NOW v2.0 MTU). Use `250` for maximum compatibility/low memory.
+- `maxRetries` (default `1`): resend attempts after the initial send (0 = no retry).
+- `retryDelayMs` (default `0`): delay between retries (defaults to immediate retry when a timeout is detected).
+- `txTimeoutMs` (default `120`): in-flight send timeout; when elapsed, treat as failure and retry or give up.
 - `canAcceptRegistrations` (default `true`): whether this node can accept new peers.
 - `sendTimeoutMs` (default `50`): queueing timeout when adding to the send queue. `0`=non-blocking, `portMAX_DELAY`=block forever.
 - `taskCore` (default `ARDUINO_RUNNING_CORE`): FreeRTOS send-task core pinning. `-1` for unpinned, `0` or `1` to pin; default matches the loop task.
@@ -75,6 +78,12 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Queue is a FreeRTOS Queue holding metadata (pointer+length+dest type) to pre-allocated fixed-size buffers; begin fails if the pool cannot be allocated.
 - Memory estimate: roughly `maxPayloadBytes * maxQueueLength` plus metadata (e.g., 1470B×16 ≈ 24KB).
 - For constrained RAM or legacy compatibility, lower `maxPayloadBytes` (e.g., 250) and tune `maxQueueLength`.
+
+### Retries and duplicate handling
+- Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
+- If the flag stays set longer than `txTimeoutMs`, treat as timeout and retry (or fail) using the same message ID/sequence; `retryDelayMs` defaults to 0 (immediate retry).
+- Retries set a retry flag; receivers drop duplicate `msgId/seq` per peer and may optionally surface "wasRetry" metadata in callbacks.
+ - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
 
 ## Callbacks
 - `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.

@@ -59,6 +59,9 @@ void loop() {
 - `enableBroadcastAuth` (既定 true): Broadcast の HMAC 認証とリプレイ防止。
 - `maxQueueLength` (既定 16): 送信キュー長。
 - `maxPayloadBytes` (既定 1470): 送信ペイロード上限（ESP-NOW v2.0 MTU 想定）。互換性/省メモリなら 250 に下げる。
+- `maxRetries` (既定 1): 初回送信後のリトライ回数。0 でリトライなし。
+- `retryDelayMs` (既定 0): リトライ間隔。送信タイムアウト検知後は即再送がデフォルト（バックオフしたい場合のみ設定）。
+- `txTimeoutMs` (既定 120): 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め。
 - `canAcceptRegistrations` (既定 true): このノードが peer を受け入れるか。
 - `sendTimeoutMs` (既定 50): 送信キュー投入時のタイムアウト。`0`=非ブロック、`portMAX_DELAY`=無期限。
 - `taskCore` (既定 `ARDUINO_RUNNING_CORE`): 送信タスクをピン留めするコア。`-1` で無指定、`0/1` で指定。デフォルトは loop と同じコア。
@@ -74,6 +77,12 @@ void loop() {
 - 送信キューは FreeRTOS の Queue にメタデータ（ポインタ+長さ+宛先種別など）を積み、実データ用の固定長バッファは `begin()` 時にまとめて確保。以降は `malloc` しない。確保失敗時は begin が失敗。
 - メモリ目安: おおむね `maxPayloadBytes * maxQueueLength` にメタデータ分が加算（例: 1470B×16 ≒ 24KB）。
 - 省メモリ/互換性重視なら `maxPayloadBytes` を 250 などに下げ、`maxQueueLength` も適宜調整。
+
+### リトライと重複扱い
+- 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。
+- フラグが立ったまま `txTimeoutMs` を超えたらタイムアウト扱い→同じ msgId/seq で `maxRetries` 回までリトライ（`retryDelayMs` 既定 0 で即再送）。
+- リトライ時はリトライフラグを立て、受信側は peer ごとに `msgId/seq` を見て重複を破棄（必要ならコールバックにリトライ情報を渡す）。
+- 送信完了 CB では共有状態を触らず、FreeRTOS のタスク通知（`xTaskNotifyFromISR`）で送信タスクに結果を渡し、送信タスク側でフラグを下ろして `onSendResult` を実行する。
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。

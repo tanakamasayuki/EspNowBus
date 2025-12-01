@@ -96,7 +96,9 @@ groupSecret → groupId / keyAuth / keyBcast
 - `magic`（1）: EspNowBus パケット識別
 - `version`（1）
 - `type`（1）: PacketType
-- `flags`（1）: 予約
+- `flags`（1）: ビットフラグ  
+  - bit0: `isRetry`（同一 `msgId`/`seq` の再送時に 1）  
+  - bit1〜7: 予約
 
 ### 6.2 PacketType 一覧
 - `DataUnicast`  
@@ -106,13 +108,16 @@ groupSecret → groupId / keyAuth / keyBcast
 
 ### 6.3 種別別の振る舞い
 #### DataUnicast
-- `[BaseHeader][UserPayload]`
+- `[BaseHeader][msgId][UserPayload]`
 - groupId は含まない
 - 既存 peer からの通信のみ受理
+- `msgId` は送信元ごとに単調増加（uint16、オーバーフローで wrap）。リトライ時は同じ `msgId` を使い、`flags.isRetry=1`
+- 受信側は peer ごとに「最後に処理した msgId」を保持し、同一 msgId は重複として破棄（※仕様により後述）
 
 #### DataBroadcast
 - `[BaseHeader][groupId][seq][authTag][UserPayload]`
 - groupId・authTag が正しい場合のみ onReceive へ渡す
+- `seq`（uint16 など固定幅）は送信元ごとに単調増加。リトライ時は同じ `seq` を使い、`flags.isRetry=1`
 
 #### ControlJoinReq / Ack
 - JOIN / 再JOIN
@@ -135,6 +140,9 @@ struct Config {
     uint16_t maxQueueLength   = 16;      // 送信キュー長
     uint16_t maxPayloadBytes  = 1470;    // 送信ペイロード上限（ESP-NOW v2.0 想定）。互換性重視なら 250 に下げる
     uint32_t sendTimeoutMs    = 50;      // キュー投入時の既定タイムアウト。0=非ブロック, portMAX_DELAY=無期限
+    uint8_t  maxRetries       = 1;       // 送信リトライ回数（初回送信を除く）。0 でリトライなし
+    uint16_t retryDelayMs     = 0;       // リトライ間隔。送信タイムアウト検知後に即再送が既定なので 0ms（バックオフしたい場合のみ設定）
+    uint32_t txTimeoutMs      = 120;     // 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め
 
     // このノードが登録要求を「受け入れる権限を持つか」
     bool canAcceptRegistrations = true;  // Slave にしたい場合は false
@@ -207,6 +215,15 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
   - `timeoutMs = portMAX_DELAY`: 無期限ブロック（ISR では使用不可）  
   - `kUseDefault` は `portMAX_DELAY - 1` を特別値として使用（`portMAX_DELAY` と衝突させないため）
   - デフォルト `sendTimeoutMs = 50` ms 程度を想定し、必要に応じて変更
+- 送信タスク内の送信状態管理（シングルスロット）  
+  - 「送信中フラグ」と `currentTx` を保持。キューから取り出したら即 ESP-NOW 送信し、送信開始時刻を記録してフラグ ON  
+  - ESP-NOW の送信完了コールバックでは状態を直接触らず、FreeRTOS のタスク通知（`xTaskNotifyFromISR`）で送信タスクへ結果を渡す  
+  - 送信タスク側は通知を受けたら送信中フラグを OFF にし、結果を onSendResult へ通知  
+  - 送信中フラグが ON のまま `txTimeoutMs` を超えたらタイムアウト扱いで失敗→リトライ判定へ  
+- 送信リトライ: タイムアウト or ESP-NOW 送信失敗時に、同じ `msgId/seq` を保持したまま `Config.maxRetries` 回まで即再送（`retryDelayMs` が 0 の場合）  
+  - `retryDelayMs` を設定した場合はその間隔をあける（指数バックオフする場合も初期値として利用）  
+  - リトライ時は `flags.isRetry=1` をセット  
+  - 全試行が失敗したら onSendResult で `SendFailed` を通知
 - 送信タスクはデフォルトで ARDUINO_RUNNING_CORE（loop と同じコア）にピン留めし、優先度 3・スタック 4096B で生成  
   - `taskCore = -1` でピン留めなし、0/1 でコア指定可  
   - 優先度を上げ過ぎると WiFi/ESP-NOW タスクを妨げる可能性あり
@@ -231,6 +248,12 @@ ControlJoinReq をブロードキャスト（groupId + authTag）
 3. `canAcceptRegistrations && acceptRegistration == true` の場合のみ対応  
 4. 認証OK → addPeer()  
 5. ControlJoinAck を返す（ユニキャスト）
+
+### 8.4 重複検出・リトライ扱い
+- Unicast: peer ごとに最後に受理した `msgId` を記録し、同一 `msgId`（リトライ）は破棄（必要なら onReceive に「リトライだった」メタ情報を渡す）  
+- Broadcast: `seq` の再送は authTag 検証後、リプレイ窓で破棄。`flags.isRetry` はデバッグ用フラグとして利用  
+- リプレイ窓幅は 16〜64 程度を想定し、オーバーフロー時も最も近い未来方向のみを受理する簡易窓で実装
+- onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`（途中経過を通知したい場合）などを固定列挙で定義
 
 ---
 
