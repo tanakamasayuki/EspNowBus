@@ -97,6 +97,11 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 ## Documentation
 - Detailed spec (Japanese): `SPEC.ja.md`
 - Japanese README: `README.ja.md`
+- Use cases:
+  - Small sensor → gateway networks
+  - Controller → multiple robots or gadgets
+  - Small multiplayer or event/local interactive setups
+  - Ad-hoc device clusters that should stay isolated via group keys
 
 ## License
 MIT (see `LICENSE`).
