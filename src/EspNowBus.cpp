@@ -216,12 +216,12 @@ void EspNowBus::onAppAck(AppAckCallback cb)
     onAppAck_ = cb;
 }
 
-void EspNowBus::onJoinEvent(JoinEventCb cb)
+void EspNowBus::onJoinEvent(JoinEventCallback cb)
 {
     onJoinEvent_ = cb;
 }
 
-void EspNowBus::onPeerPurged(PurgeEventCb cb)
+void EspNowBus::onPeerPurged(PurgeEventCallback cb)
 {
     onPeerPurged_ = cb;
 }
