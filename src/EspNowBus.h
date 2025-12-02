@@ -5,6 +5,10 @@
 #include <freertos/queue.h>
 #include <freertos/task.h>
 #include <esp_now.h>
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <esp_wifi.h>
+#endif
 
 // ESP32 ESP-NOW message bus (design in SPEC.ja.md). Implementation is WIP.
 // APIs are stubbed so the library can be included and built while the core logic is developed.
@@ -213,8 +217,21 @@ private:
     bool storedNonceBValid_ = false;
     uint32_t lastReseedMs_ = 0;
 
-    static void onSendStatic(const uint8_t *mac, esp_now_send_status_t status);
-    static void onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len);
+    static void onSendStatic(
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        const wifi_tx_info_t *info,
+#else
+        const uint8_t *mac,
+#endif
+        esp_now_send_status_t status);
+
+    static void onReceiveStatic(
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        const esp_now_recv_info_t *info,
+#else
+        const uint8_t *mac,
+#endif
+        const uint8_t *data, int len);
     static void sendTaskTrampoline(void *arg);
 
     void sendTaskLoop();

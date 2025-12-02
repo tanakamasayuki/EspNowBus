@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_heap_caps.h>
+#include <esp_idf_version.h>
 #include <string.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/md.h>
@@ -311,7 +312,10 @@ int EspNowBus::ensurePeer(const uint8_t mac[6])
             peers_[i].inUse = true;
             memcpy(peers_[i].mac, mac, 6);
             peers_[i].lastMsgId = 0;
-            peers_[i].lastBroadcastSeq = 0;
+            peers_[i].lastBroadcastBase = 0;
+            peers_[i].bcastWindow = 0;
+            peers_[i].lastJoinSeqBase = 0;
+            peers_[i].joinWindow = 0;
             if (config_.useEncryption)
             {
                 esp_now_peer_info_t info = makePeerInfo(mac, true, derived_.lmk);
@@ -465,8 +469,14 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
     return true;
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+void EspNowBus::onSendStatic(const wifi_tx_info_t *info, esp_now_send_status_t status)
+{
+    const uint8_t *mac = info ? info->dest_addr : nullptr;
+#else
 void EspNowBus::onSendStatic(const uint8_t *mac, esp_now_send_status_t status)
 {
+#endif
     if (!instance_ || !instance_->sendTask_)
         return;
     uint32_t val = (status == ESP_NOW_SEND_SUCCESS) ? 1 : 2;
@@ -478,8 +488,14 @@ void EspNowBus::onSendStatic(const uint8_t *mac, esp_now_send_status_t status)
     }
 }
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+void EspNowBus::onReceiveStatic(const esp_now_recv_info_t *info, const uint8_t *data, int len)
+{
+    const uint8_t *mac = info ? info->src_addr : nullptr;
+#else
 void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len)
 {
+#endif
     if (!instance_ || len < static_cast<int>(kHeaderSize))
         return;
     const uint8_t *p = data;
@@ -556,7 +572,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             {
                 ESP_LOGW(TAG, "join prevToken mismatch, treating as fresh");
                 memset(instance_->peers_[idx].lastNonceB, 0, kNonceLen);
-                storedNonceBValid_ = false;
+                instance_->storedNonceBValid_ = false;
             }
             JoinAckPayload ackPayload{};
             memcpy(ackPayload.nonceA, req->nonceA, kNonceLen); // echo nonceA
@@ -879,6 +895,8 @@ void EspNowBus::reseedCounters(uint32_t now)
 bool EspNowBus::acceptBroadcastSeq(PeerInfo &peer, uint16_t seq)
 {
     uint16_t window = config_.replayWindowBcast;
+    if (window > 64)
+        window = 64;
     if (window == 0)
         return true;
     uint16_t base = peer.lastBroadcastBase;
@@ -915,6 +933,8 @@ bool EspNowBus::acceptBroadcastSeq(PeerInfo &peer, uint16_t seq)
 bool EspNowBus::acceptJoinSeq(PeerInfo &peer, uint16_t seq)
 {
     uint16_t window = config_.replayWindowJoin;
+    if (window > 64)
+        window = 64;
     if (window == 0)
         return true;
     uint16_t base = peer.lastJoinSeqBase;
