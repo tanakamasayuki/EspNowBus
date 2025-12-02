@@ -277,7 +277,7 @@ void EspNowBus::freeBuffer(uint16_t idx) {
 
 bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs) {
     if (!sendQueue_) return false;
-    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck);
+    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck);
     const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;
     if (totalLen > config_.maxPayloadBytes) {
         if (onSendResult_) onSendResult_(mac, SendStatus::TooLarge);
@@ -470,7 +470,12 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
     } else if (type == PacketType::ControlAppAck) {
         if (payloadLen < static_cast<int>(sizeof(AppAckPayload))) return;
         const AppAckPayload* ack = reinterpret_cast<const AppAckPayload*>(payload);
-        // mark app-ack received for potential future tracking
+        if (instance_->txInFlight_ && instance_->currentTx_.expectAck && ack->msgId == instance_->currentTx_.msgId) {
+            if (instance_->onSendResult_) instance_->onSendResult_(mac, SendStatus::AppAckReceived);
+            instance_->freeBuffer(instance_->currentTx_.bufferIndex);
+            instance_->txInFlight_ = false;
+            instance_->retryCount_ = 0;
+        }
         if (instance_->onAppAck_) {
             instance_->onAppAck_(mac, ack->msgId);
         }
@@ -505,6 +510,12 @@ bool EspNowBus::startSend(const TxItem& item) {
 void EspNowBus::handleSendComplete(bool ok, bool timedOut) {
     if (!txInFlight_) return;
     auto entry = currentTx_;
+
+    // If app-level ACK is expected and we got a physical failure, keep buffer for retry path
+    if (!ok && entry.expectAck) {
+        // fall through to retry logic
+    }
+
     if (ok) {
         if (onSendResult_) onSendResult_(entry.mac, SendStatus::SentOk);
         freeBuffer(entry.bufferIndex);
@@ -571,6 +582,18 @@ void EspNowBus::sendTaskLoop() {
         // timeout
         if (millis() >= txDeadlineMs_) {
             handleSendComplete(false, true);
+        }
+
+        // app-ack timeout check
+        if (txInFlight_ && currentTx_.expectAck) {
+            uint32_t now2 = millis();
+            if (now2 >= currentTx_.appAckDeadlineMs) {
+                if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::AppAckTimeout);
+                ESP_LOGW(TAG, "app-ack timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", currentTx_.mac[0], currentTx_.mac[1], currentTx_.mac[2], currentTx_.mac[3], currentTx_.mac[4], currentTx_.mac[5]);
+                freeBuffer(currentTx_.bufferIndex);
+                txInFlight_ = false;
+                retryCount_ = 0;
+            }
         }
     }
 }
