@@ -36,6 +36,7 @@ public:
     static constexpr uint16_t kMaxPayloadDefault = 1470;
     static constexpr uint16_t kMaxPayloadLegacy  = 250;
     static constexpr uint8_t  kAuthTagLen = 16;
+    static constexpr uint16_t kReplayWindow = 64;
 
     enum PacketType : uint8_t {
         DataUnicast = 1,
@@ -103,7 +104,8 @@ private:
         uint8_t mac[6];
         bool inUse = false;
         uint16_t lastMsgId = 0;
-        uint16_t lastBroadcastSeq = 0;
+        uint16_t lastBroadcastBase = 0;
+        uint64_t bcastWindow = 0; // bit0 = base+1 ... bit63 = base+64
     };
 
     Config config_{};
@@ -158,6 +160,7 @@ private:
     int16_t allocBuffer();
     void freeBuffer(uint16_t idx);
     bool deriveKeys(const char* groupName);
-    void computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len);
-    bool verifyAuthTag(const uint8_t* msg, size_t len);
+    void computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len, const uint8_t* key);
+    bool verifyAuthTag(const uint8_t* msg, size_t len, uint8_t pktType);
+    bool acceptBroadcastSeq(PeerInfo& peer, uint16_t seq);
 };

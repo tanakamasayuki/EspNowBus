@@ -86,6 +86,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Retries set a retry flag; receivers drop duplicate `msgId/seq` per peer and may optionally surface "wasRetry" metadata in callbacks.
 - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
 - Minimal JOIN flow: `sendRegistrationRequest()` broadcasts a ControlJoinReq; nodes that can accept register the sender and unicast ControlJoinAck back. (No auth/encryption yet.)
+- Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay is limited via a 64-entry sliding window per peer.
 
 ## Callbacks
 - `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.

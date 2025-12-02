@@ -291,7 +291,8 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     cursor += len;
 
     if (needsAuth) {
-        computeAuthTag(buf + cursor, buf, cursor);
+        const uint8_t* key = (pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) ? derived_.keyAuth : derived_.keyBcast;
+        computeAuthTag(buf + cursor, buf, cursor, key);
         cursor += kAuthTagLen;
     }
 
@@ -343,7 +344,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
 
     const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck);
     if (needsAuth) {
-        if (!instance_->verifyAuthTag(data, len)) {
+        if (!instance_->verifyAuthTag(data, len, type)) {
             return; // auth failed or groupId mismatch
         }
     }
@@ -362,16 +363,26 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         }
         if (idx >= 0) instance_->peers_[idx].lastMsgId = id;
     } else if (type == PacketType::DataBroadcast) {
-        if (idx >= 0 && instance_->peers_[idx].lastBroadcastSeq == id) {
+        if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id)) {
             return;
         }
-        if (idx >= 0) instance_->peers_[idx].lastBroadcastSeq = id;
     } else if (type == PacketType::ControlJoinReq) {
         // Add peer and reply with Ack
         if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
             instance_->addPeer(mac);
-            const uint8_t dummy = 0;
-            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, &dummy, sizeof(dummy), kUseDefault);
+            if (payloadLen >= 4) {
+                uint32_t nonce = static_cast<uint32_t>(payload[0]) |
+                                 (static_cast<uint32_t>(payload[1]) << 8) |
+                                 (static_cast<uint32_t>(payload[2]) << 16) |
+                                 (static_cast<uint32_t>(payload[3]) << 24);
+                uint8_t ackPayload[4];
+                ackPayload[0] = payload[0];
+                ackPayload[1] = payload[1];
+                ackPayload[2] = payload[2];
+                ackPayload[3] = payload[3];
+                (void)nonce;
+                instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
+            }
         }
         return;
     } else if (type == PacketType::ControlJoinAck) {
@@ -508,7 +519,7 @@ bool EspNowBus::deriveKeys(const char* groupName) {
     return true;
 }
 
-void EspNowBus::computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len) {
+void EspNowBus::computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len, const uint8_t* key) {
     mbedtls_md_context_t ctx;
     const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     mbedtls_md_init(&ctx);
@@ -517,7 +528,7 @@ void EspNowBus::computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len) {
         memset(out, 0, kAuthTagLen);
         return;
     }
-    mbedtls_md_hmac_starts(&ctx, derived_.keyBcast, sizeof(derived_.keyBcast));
+    mbedtls_md_hmac_starts(&ctx, key, kAuthTagLen);
     mbedtls_md_hmac_update(&ctx, msg, len);
     uint8_t full[32];
     mbedtls_md_hmac_finish(&ctx, full);
@@ -525,7 +536,7 @@ void EspNowBus::computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len) {
     mbedtls_md_free(&ctx);
 }
 
-bool EspNowBus::verifyAuthTag(const uint8_t* msg, size_t len) {
+bool EspNowBus::verifyAuthTag(const uint8_t* msg, size_t len, uint8_t pktType) {
     if (len < kHeaderSize + 4 + kAuthTagLen) return false;
     const uint8_t* groupPtr = msg + kHeaderSize;
     uint32_t gid = static_cast<uint32_t>(groupPtr[0]) |
@@ -533,8 +544,39 @@ bool EspNowBus::verifyAuthTag(const uint8_t* msg, size_t len) {
                    (static_cast<uint32_t>(groupPtr[2]) << 16) |
                    (static_cast<uint32_t>(groupPtr[3]) << 24);
     if (gid != derived_.groupId) return false;
+    const uint8_t* key = (pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) ? derived_.keyAuth : derived_.keyBcast;
     size_t tagOffset = len - kAuthTagLen;
     uint8_t calc[kAuthTagLen];
-    computeAuthTag(calc, msg, tagOffset);
+    computeAuthTag(calc, msg, tagOffset, key);
     return memcmp(calc, msg + tagOffset, kAuthTagLen) == 0;
+}
+
+bool EspNowBus::acceptBroadcastSeq(PeerInfo& peer, uint16_t seq) {
+    // Simple sliding window of size kReplayWindow with wrap-around handling
+    uint16_t base = peer.lastBroadcastBase;
+    uint16_t dist = static_cast<uint16_t>(seq - base);
+    if (dist == 0) {
+        return false; // duplicate
+    }
+    if (dist <= kReplayWindow) {
+        uint64_t bit = 1ULL << (dist - 1);
+        if (peer.bcastWindow & bit) {
+            return false; // seen
+        }
+        peer.bcastWindow |= bit;
+        return true;
+    }
+    // advance window
+    if (dist > kReplayWindow) {
+        uint16_t shift = dist - 1;
+        if (shift >= 64) {
+            peer.bcastWindow = 0;
+        } else {
+            peer.bcastWindow <<= shift;
+        }
+        peer.bcastWindow |= 1ULL;
+        peer.lastBroadcastBase = seq;
+        return true;
+    }
+    return true;
 }
