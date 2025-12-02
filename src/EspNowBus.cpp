@@ -472,7 +472,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 void EspNowBus::onSendStatic(const wifi_tx_info_t *info, esp_now_send_status_t status)
 {
-    const uint8_t *mac = info ? info->dest_addr : nullptr;
+    const uint8_t *mac = info ? info->des_addr : nullptr;
 #else
 void EspNowBus::onSendStatic(const uint8_t *mac, esp_now_send_status_t status)
 {
