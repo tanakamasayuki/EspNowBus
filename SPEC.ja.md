@@ -234,12 +234,14 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - 送信リトライ: タイムアウト or ESP-NOW 送信失敗時に、同じ `msgId/seq` を保持したまま `Config.maxRetries` 回まで即再送（`retryDelayMs` が 0 の場合）  
   - `retryDelayMs` を設定した場合はその間隔をあける（指数バックオフする場合も初期値として利用）  
   - リトライ時は `flags.isRetry=1` をセット  
-  - 全試行が失敗したら onSendResult で `SendFailed` を通知
+  - 全試行が失敗したら onSendResult で `SendFailed` を通知  
 - 送信タスクはデフォルトで ARDUINO_RUNNING_CORE（loop と同じコア）にピン留めし、優先度 3・スタック 4096B で生成  
   - `taskCore = -1` でピン留めなし、0/1 でコア指定可  
   - 優先度を上げ過ぎると WiFi/ESP-NOW タスクを妨げる可能性あり
 - 物理 ACK（ESP-NOW の MAC 層 ACK）は、復号に失敗しても返る点に注意。`onSendResult(SentOk)` は「物理送信成功」を意味し、論理的な到達は保証しない  
-- アプリ層 ACK（論理 ACK）: `enableAppAck=true` の場合、ユニキャスト受信時に msgId を含む Ack パケットを自動返信し、送信側は Ack 未達ならリトライ/再JOIN を行う（実装 TBD）
+- アプリ層 ACK（論理 ACK）: `enableAppAck=true` の場合、ユニキャスト受信時に msgId を含む Ack パケットを自動返信し、送信側は Ack 未達ならリトライ/再JOIN を行う  
+  - 物理 ACK が無くても論理 ACK を受け取れた場合は「到達成功」とみなしつつ警告ログを残す  
+  - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う
 
 ### 8.2 受信
 - BaseHeader → PacketType で分岐
@@ -266,6 +268,7 @@ ControlJoinReq をブロードキャスト（groupId + authTag）
 - Unicast: peer ごとに最後に受理した `msgId` を記録し、同一 `msgId`（リトライ）は破棄（必要なら onReceive に「リトライだった」メタ情報を渡す）  
 - Broadcast: `seq` の再送は authTag 検証後、リプレイ窓で破棄。`flags.isRetry` はデバッグ用フラグとして利用  
 - リプレイ窓幅は 16〜64 程度を想定し、オーバーフロー時も最も近い未来方向のみを受理する簡易窓で実装
+- 論理 ACK: 受信側が重複と判定して UserPayload を渡さなかった場合でも、`enableAppAck=true` なら msgId を含む Ack を返信する（送信側の再送抑止のため）
 - onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`（途中経過を通知したい場合）などを固定列挙で定義
 
 ---
