@@ -109,6 +109,14 @@ private:
     ReceiveCallback onReceive_ = nullptr;
     SendResultCallback onSendResult_ = nullptr;
 
+    struct DerivedKeys {
+        uint8_t pmk[16]{};      // Primary Master Key for ESP-NOW encryption
+        uint8_t lmk[16]{};      // Local Master Key for peers
+        uint8_t keyAuth[16]{};  // Auth HMAC key (unused yet)
+        uint8_t keyBcast[16]{}; // Broadcast auth key (unused yet)
+        uint32_t groupId = 0;   // Public group id
+    } derived_{};
+
     QueueHandle_t sendQueue_ = nullptr;
     TaskHandle_t sendTask_ = nullptr;
     TaskHandle_t selfTaskHandle_ = nullptr; // for notifications
@@ -148,4 +156,5 @@ private:
     uint8_t* bufferPtr(uint16_t idx);
     int16_t allocBuffer();
     void freeBuffer(uint16_t idx);
+    bool deriveKeys(const char* groupName);
 };

@@ -4,16 +4,22 @@
 #include <esp_now.h>
 #include <esp_heap_caps.h>
 #include <string.h>
+#include <mbedtls/sha256.h>
 
 EspNowBus* EspNowBus::instance_ = nullptr;
 
 namespace {
-constexpr esp_now_peer_info_t makePeerInfo(const uint8_t mac[6], bool encrypt) {
+esp_now_peer_info_t makePeerInfo(const uint8_t mac[6], bool encrypt, const uint8_t* lmk) {
     esp_now_peer_info_t info{};
     memcpy(info.peer_addr, mac, 6);
     info.ifidx = WIFI_IF_STA;
     info.channel = 0;
-    info.encrypt = encrypt ? 1 : 0; // NOTE: key 未設定のため encrypt=false で使用する想定
+    if (encrypt && lmk) {
+        info.encrypt = 1;
+        memcpy(info.lmk, lmk, 16);
+    } else {
+        info.encrypt = 0;
+    }
     return info;
 }
 } // namespace
@@ -26,16 +32,23 @@ bool EspNowBus::begin(const Config& cfg) {
     instance_ = this;
     config_ = cfg;
 
+    if (!deriveKeys(config_.groupName)) {
+        return false;
+    }
+
     WiFi.mode(WIFI_STA);
     if (esp_now_init() != ESP_OK) {
         return false;
+    }
+    if (config_.useEncryption) {
+        esp_now_set_pmk(derived_.pmk);
     }
     esp_now_register_send_cb(&EspNowBus::onSendStatic);
     esp_now_register_recv_cb(&EspNowBus::onReceiveStatic);
 
     // Ensure broadcast peer exists
     const uint8_t broadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    esp_now_peer_info_t bcastPeer = makePeerInfo(broadcastMac, false);
+    esp_now_peer_info_t bcastPeer = makePeerInfo(broadcastMac, false, nullptr);
     esp_now_add_peer(&bcastPeer);
 
     // Allocate payload pool
@@ -140,8 +153,7 @@ bool EspNowBus::addPeer(const uint8_t mac[6]) {
     idx = ensurePeer(mac);
     if (idx < 0) return false;
 
-    // NOTE: encryption未実装のため encrypt=false で登録
-    esp_now_peer_info_t info = makePeerInfo(mac, false);
+    esp_now_peer_info_t info = makePeerInfo(mac, config_.useEncryption, derived_.lmk);
     esp_err_t err = esp_now_add_peer(&info);
     if (err != ESP_OK && err != ESP_ERR_ESPNOW_EXIST) {
         peers_[idx].inUse = false;
@@ -202,6 +214,10 @@ int EspNowBus::ensurePeer(const uint8_t mac[6]) {
             memcpy(peers_[i].mac, mac, 6);
             peers_[i].lastMsgId = 0;
             peers_[i].lastBroadcastSeq = 0;
+            if (config_.useEncryption) {
+                esp_now_peer_info_t info = makePeerInfo(mac, true, derived_.lmk);
+                esp_now_add_peer(&info);
+            }
             return static_cast<int>(i);
         }
     }
@@ -330,8 +346,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         return;
     } else if (type == PacketType::ControlJoinAck) {
         // Ensure peer is registered
-        (void)idx;
-        instance_->addPeer(mac);
+        if (idx < 0) {
+            instance_->addPeer(mac);
+        }
         return;
     } else {
         // Control packets not yet handled
@@ -425,4 +442,38 @@ void EspNowBus::sendTaskLoop() {
             handleSendComplete(false, true);
         }
     }
+}
+
+bool EspNowBus::deriveKeys(const char* groupName) {
+    uint8_t secret[32];
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    if (mbedtls_sha256_starts_ret(&ctx, 0) != 0) return false;
+    if (mbedtls_sha256_update_ret(&ctx, reinterpret_cast<const unsigned char*>(groupName), strlen(groupName)) != 0) return false;
+    if (mbedtls_sha256_finish_ret(&ctx, secret) != 0) return false;
+    mbedtls_sha256_free(&ctx);
+
+    auto derive = [&](const char* label, uint8_t* out, size_t outLen) {
+        uint8_t digest[32];
+        mbedtls_sha256_context c;
+        mbedtls_sha256_init(&c);
+        mbedtls_sha256_starts_ret(&c, 0);
+        mbedtls_sha256_update_ret(&c, reinterpret_cast<const unsigned char*>(label), strlen(label));
+        mbedtls_sha256_update_ret(&c, secret, sizeof(secret));
+        mbedtls_sha256_finish_ret(&c, digest);
+        memcpy(out, digest, outLen);
+        mbedtls_sha256_free(&c);
+    };
+
+    derive("pmk", derived_.pmk, sizeof(derived_.pmk));
+    derive("lmk", derived_.lmk, sizeof(derived_.lmk));
+    derive("auth", derived_.keyAuth, sizeof(derived_.keyAuth));
+    derive("bcast", derived_.keyBcast, sizeof(derived_.keyBcast));
+    uint8_t gid[4];
+    derive("gid", gid, sizeof(gid));
+    derived_.groupId = static_cast<uint32_t>(gid[0]) |
+                       (static_cast<uint32_t>(gid[1]) << 8) |
+                       (static_cast<uint32_t>(gid[2]) << 16) |
+                       (static_cast<uint32_t>(gid[3]) << 24);
+    return true;
 }
