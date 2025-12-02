@@ -403,8 +403,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             const uint8_t* nonceA = payload;
             const uint8_t* prevToken = payload + kNonceLen;
             bool resumed = memcmp(prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
-            if (!resumed && instance_->storedNonceBValid_) {
+            if (instance_->storedNonceBValid_ && !resumed) {
                 ESP_LOGW(TAG, "join prevToken mismatch");
+                return;
             }
             uint8_t ackPayload[kNonceLen * 2];
             memcpy(ackPayload, nonceA, kNonceLen); // echo nonceA
@@ -429,6 +430,8 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 memcpy(instance_->storedNonceB_, payload + kNonceLen, kNonceLen);
                 instance_->storedNonceBValid_ = true;
                 ESP_LOGI(TAG, "join success, peer idx=%d", idx);
+            } else {
+                ESP_LOGW(TAG, "join ack nonce mismatch");
             }
         }
         return;
