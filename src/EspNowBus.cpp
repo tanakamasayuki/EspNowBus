@@ -106,7 +106,7 @@ void EspNowBus::end() {
 
 bool EspNowBus::sendTo(const uint8_t mac[6], const void* data, size_t len, uint32_t timeoutMs) {
     if (!mac) return false;
-    return enqueueCommon(Dest::Unicast, mac, data, len, timeoutMs);
+    return enqueueCommon(Dest::Unicast, PacketType::DataUnicast, mac, data, len, timeoutMs);
 }
 
 bool EspNowBus::sendToAllPeers(const void* data, size_t len, uint32_t timeoutMs) {
@@ -122,7 +122,7 @@ bool EspNowBus::sendToAllPeers(const void* data, size_t len, uint32_t timeoutMs)
 
 bool EspNowBus::broadcast(const void* data, size_t len, uint32_t timeoutMs) {
     static const uint8_t bcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    return enqueueCommon(Dest::Broadcast, bcast, data, len, timeoutMs);
+    return enqueueCommon(Dest::Broadcast, PacketType::DataBroadcast, bcast, data, len, timeoutMs);
 }
 
 void EspNowBus::onReceive(ReceiveCallback cb) {
@@ -170,8 +170,18 @@ void EspNowBus::setAcceptRegistration(bool enable) {
 
 bool EspNowBus::sendRegistrationRequest() {
     static const uint8_t bcast[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-    const char payload[] = "join"; // placeholder control payload
-    return enqueueCommon(Dest::Broadcast, bcast, payload, sizeof(payload), kUseDefault);
+    const uint8_t dummy = 0;
+    return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, bcast, &dummy, sizeof(dummy), kUseDefault);
+}
+
+bool EspNowBus::initPeers(const uint8_t peers[][6], size_t count) {
+    bool ok = true;
+    for (size_t i = 0; i < count; ++i) {
+        if (!addPeer(peers[i])) {
+            ok = false;
+        }
+    }
+    return ok;
 }
 
 // --- internal helpers ---
@@ -219,7 +229,7 @@ void EspNowBus::freeBuffer(uint16_t idx) {
     bufferUsed_[idx] = false;
 }
 
-bool EspNowBus::enqueueCommon(Dest dest, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs) {
+bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs) {
     if (!sendQueue_) return false;
     const size_t totalLen = kHeaderSize + len;
     if (totalLen > config_.maxPayloadBytes) {
@@ -234,7 +244,7 @@ bool EspNowBus::enqueueCommon(Dest dest, const uint8_t* mac, const void* data, s
 
     uint16_t msgId = 0;
     uint16_t seq = 0;
-    if (dest == Dest::Broadcast) {
+    if (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq) {
         seq = ++broadcastSeq_;
     } else {
         msgId = ++msgCounter_;
@@ -243,9 +253,9 @@ bool EspNowBus::enqueueCommon(Dest dest, const uint8_t* mac, const void* data, s
     uint8_t* buf = bufferPtr(static_cast<uint16_t>(bufIdx));
     buf[0] = kMagic;
     buf[1] = kVersion;
-    buf[2] = (dest == Dest::Broadcast) ? PacketType::DataBroadcast : PacketType::DataUnicast;
+    buf[2] = pktType;
     buf[3] = 0; // flags
-    uint16_t idField = (dest == Dest::Broadcast) ? seq : msgId;
+    uint16_t idField = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq) ? seq : msgId;
     buf[4] = static_cast<uint8_t>(idField & 0xFF);
     buf[5] = static_cast<uint8_t>((idField >> 8) & 0xFF);
 
@@ -257,6 +267,7 @@ bool EspNowBus::enqueueCommon(Dest dest, const uint8_t* mac, const void* data, s
     item.msgId = msgId;
     item.seq = seq;
     item.dest = dest;
+    item.pktType = pktType;
     item.isRetry = false;
     memcpy(item.mac, mac, 6);
 
@@ -309,6 +320,9 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             return;
         }
         if (idx >= 0) instance_->peers_[idx].lastBroadcastSeq = id;
+    } else {
+        // Control packets not yet handled
+        return;
     }
     if (instance_->onReceive_) {
         instance_->onReceive_(mac, payload, static_cast<size_t>(payloadLen), isRetry);

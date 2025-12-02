@@ -81,6 +81,9 @@ public:
 
     bool sendRegistrationRequest();
 
+    // Pair management (plain, no auth yet)
+    bool initPeers(const uint8_t peers[][6], size_t count);
+
 private:
     enum class Dest : uint8_t { Unicast, Broadcast };
 
@@ -90,6 +93,7 @@ private:
         uint16_t msgId;
         uint16_t seq;
         Dest dest;
+        PacketType pktType;
         bool isRetry;
         uint8_t mac[6];
     };
@@ -138,7 +142,7 @@ private:
     void handleSendComplete(bool ok, bool timedOut);
     bool sendNextIfIdle(TickType_t waitTicks);
     bool startSend(const TxItem& item);
-    bool enqueueCommon(Dest dest, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs);
+    bool enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs);
     int findPeerIndex(const uint8_t mac[6]) const;
     int ensurePeer(const uint8_t mac[6]);
     uint8_t* bufferPtr(uint16_t idx);

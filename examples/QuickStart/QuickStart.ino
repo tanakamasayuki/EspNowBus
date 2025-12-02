@@ -24,7 +24,7 @@ void setup() {
   bus.onSendResult(onSendResult);
 
   if (!bus.begin(cfg)) {
-    Serial.println("EspNowBus begin failed (stub implementation)");
+    Serial.println("EspNowBus begin failed");
   }
 
   bus.sendRegistrationRequest();
