@@ -151,6 +151,9 @@ struct Config {
     int8_t taskCore = ARDUINO_RUNNING_CORE; // -1 でピン留めなし、0/1 で指定。既定は loop と同じコア。
     UBaseType_t taskPriority = 3;           // 1〜5 目安。loop(1) より高く、WiFi タスク(4〜5) より低めが推奨。
     uint16_t taskStackSize = 4096;          // 送信タスクのスタックサイズ（バイト）
+
+    // アプリ層 ACK（論理 ACK）を自動付与するか
+    bool enableAppAck = true;               // 既定 ON。OFF にすると物理 ACK のみで送達確認はアプリ任せ
 };
 ```
 
@@ -235,6 +238,8 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - 送信タスクはデフォルトで ARDUINO_RUNNING_CORE（loop と同じコア）にピン留めし、優先度 3・スタック 4096B で生成  
   - `taskCore = -1` でピン留めなし、0/1 でコア指定可  
   - 優先度を上げ過ぎると WiFi/ESP-NOW タスクを妨げる可能性あり
+- 物理 ACK（ESP-NOW の MAC 層 ACK）は、復号に失敗しても返る点に注意。`onSendResult(SentOk)` は「物理送信成功」を意味し、論理的な到達は保証しない  
+- アプリ層 ACK（論理 ACK）: `enableAppAck=true` の場合、ユニキャスト受信時に msgId を含む Ack パケットを自動返信し、送信側は Ack 未達ならリトライ/再JOIN を行う（実装 TBD）
 
 ### 8.2 受信
 - BaseHeader → PacketType で分岐
