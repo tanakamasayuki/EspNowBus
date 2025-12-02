@@ -5,6 +5,7 @@
 #include <esp_heap_caps.h>
 #include <string.h>
 #include <mbedtls/sha256.h>
+#include <mbedtls/md.h>
 
 EspNowBus* EspNowBus::instance_ = nullptr;
 
@@ -247,7 +248,8 @@ void EspNowBus::freeBuffer(uint16_t idx) {
 
 bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs) {
     if (!sendQueue_) return false;
-    const size_t totalLen = kHeaderSize + len;
+    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck);
+    const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;
     if (totalLen > config_.maxPayloadBytes) {
         if (onSendResult_) onSendResult_(mac, SendStatus::TooLarge);
         return false;
@@ -275,11 +277,27 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     buf[4] = static_cast<uint8_t>(idField & 0xFF);
     buf[5] = static_cast<uint8_t>((idField >> 8) & 0xFF);
 
-    memcpy(buf + kHeaderSize, data, len);
+    size_t cursor = kHeaderSize;
+    if (needsAuth) {
+        // groupId (4 bytes, LE)
+        buf[cursor + 0] = static_cast<uint8_t>(derived_.groupId & 0xFF);
+        buf[cursor + 1] = static_cast<uint8_t>((derived_.groupId >> 8) & 0xFF);
+        buf[cursor + 2] = static_cast<uint8_t>((derived_.groupId >> 16) & 0xFF);
+        buf[cursor + 3] = static_cast<uint8_t>((derived_.groupId >> 24) & 0xFF);
+        cursor += 4;
+    }
+
+    memcpy(buf + cursor, data, len);
+    cursor += len;
+
+    if (needsAuth) {
+        computeAuthTag(buf + cursor, buf, cursor);
+        cursor += kAuthTagLen;
+    }
 
     TxItem item{};
     item.bufferIndex = static_cast<uint16_t>(bufIdx);
-    item.len = static_cast<uint16_t>(totalLen);
+    item.len = static_cast<uint16_t>(cursor);
     item.msgId = msgId;
     item.seq = seq;
     item.dest = dest;
@@ -322,8 +340,20 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
     uint8_t type = p[2];
     bool isRetry = (p[3] & 0x01) != 0;
     uint16_t id = static_cast<uint16_t>(p[4]) | (static_cast<uint16_t>(p[5]) << 8);
-    const uint8_t* payload = p + kHeaderSize;
-    int payloadLen = len - static_cast<int>(kHeaderSize);
+
+    const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck);
+    if (needsAuth) {
+        if (!instance_->verifyAuthTag(data, len)) {
+            return; // auth failed or groupId mismatch
+        }
+    }
+
+    size_t cursor = kHeaderSize;
+    if (needsAuth) {
+        cursor += 4; // groupId already checked
+    }
+    const uint8_t* payload = p + cursor;
+    int payloadLen = len - static_cast<int>(cursor + (needsAuth ? kAuthTagLen : 0));
 
     int idx = instance_->ensurePeer(mac);
     if (type == PacketType::DataUnicast) {
@@ -476,4 +506,35 @@ bool EspNowBus::deriveKeys(const char* groupName) {
                        (static_cast<uint32_t>(gid[2]) << 16) |
                        (static_cast<uint32_t>(gid[3]) << 24);
     return true;
+}
+
+void EspNowBus::computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len) {
+    mbedtls_md_context_t ctx;
+    const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    mbedtls_md_init(&ctx);
+    if (mbedtls_md_setup(&ctx, info, 1) != 0) {
+        mbedtls_md_free(&ctx);
+        memset(out, 0, kAuthTagLen);
+        return;
+    }
+    mbedtls_md_hmac_starts(&ctx, derived_.keyBcast, sizeof(derived_.keyBcast));
+    mbedtls_md_hmac_update(&ctx, msg, len);
+    uint8_t full[32];
+    mbedtls_md_hmac_finish(&ctx, full);
+    memcpy(out, full, kAuthTagLen);
+    mbedtls_md_free(&ctx);
+}
+
+bool EspNowBus::verifyAuthTag(const uint8_t* msg, size_t len) {
+    if (len < kHeaderSize + 4 + kAuthTagLen) return false;
+    const uint8_t* groupPtr = msg + kHeaderSize;
+    uint32_t gid = static_cast<uint32_t>(groupPtr[0]) |
+                   (static_cast<uint32_t>(groupPtr[1]) << 8) |
+                   (static_cast<uint32_t>(groupPtr[2]) << 16) |
+                   (static_cast<uint32_t>(groupPtr[3]) << 24);
+    if (gid != derived_.groupId) return false;
+    size_t tagOffset = len - kAuthTagLen;
+    uint8_t calc[kAuthTagLen];
+    computeAuthTag(calc, msg, tagOffset);
+    return memcmp(calc, msg + tagOffset, kAuthTagLen) == 0;
 }

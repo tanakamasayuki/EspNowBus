@@ -35,6 +35,7 @@ public:
     static constexpr uint32_t kUseDefault = portMAX_DELAY - 1;
     static constexpr uint16_t kMaxPayloadDefault = 1470;
     static constexpr uint16_t kMaxPayloadLegacy  = 250;
+    static constexpr uint8_t  kAuthTagLen = 16;
 
     enum PacketType : uint8_t {
         DataUnicast = 1,
@@ -157,4 +158,6 @@ private:
     int16_t allocBuffer();
     void freeBuffer(uint16_t idx);
     bool deriveKeys(const char* groupName);
+    void computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len);
+    bool verifyAuthTag(const uint8_t* msg, size_t len);
 };
