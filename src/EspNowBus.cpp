@@ -396,21 +396,29 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 return;
             }
             instance_->addPeer(mac);
-            if (payloadLen >= static_cast<int>(kNonceLen * 2)) {
-                const uint8_t* nonceA = payload;
-                const uint8_t* prevToken = payload + kNonceLen;
-                bool resumed = memcmp(prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
-                uint8_t ackPayload[kNonceLen * 2];
-                memcpy(ackPayload, nonceA, kNonceLen); // echo nonceA
-                esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
-                memcpy(instance_->peers_[idx].lastNonceB, ackPayload + kNonceLen, kNonceLen);
-                instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
-                ESP_LOGI(TAG, "join ack sent resumed=%d", resumed);
+            if (payloadLen < static_cast<int>(kNonceLen * 2)) {
+                ESP_LOGW(TAG, "join req too short");
+                return;
             }
+            const uint8_t* nonceA = payload;
+            const uint8_t* prevToken = payload + kNonceLen;
+            bool resumed = memcmp(prevToken, instance_->peers_[idx].lastNonceB, kNonceLen) == 0;
+            if (!resumed && instance_->storedNonceBValid_) {
+                ESP_LOGW(TAG, "join prevToken mismatch");
+            }
+            uint8_t ackPayload[kNonceLen * 2];
+            memcpy(ackPayload, nonceA, kNonceLen); // echo nonceA
+            esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
+            memcpy(instance_->peers_[idx].lastNonceB, ackPayload + kNonceLen, kNonceLen);
+            instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
+            ESP_LOGI(TAG, "join ack sent resumed=%d", resumed);
         }
         return;
     } else if (type == PacketType::ControlJoinAck) {
-        if (!instance_->pendingJoin_) return; // ignore unsolicited ack
+        if (!instance_->pendingJoin_) {
+            ESP_LOGW(TAG, "unsolicited join ack ignored");
+            return;
+        }
         if (idx < 0) {
             idx = instance_->ensurePeer(mac);
         }
