@@ -182,6 +182,9 @@ private:
     bool storedNonceBValid_ = false;
     uint32_t lastReseedMs_ = 0;
 
+    // App-level ACK tracking
+    uint16_t waitingAppAckId_ = 0;
+
     static void onSendStatic(const uint8_t* mac, esp_now_send_status_t status);
     static void onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len);
     static void sendTaskTrampoline(void* arg);

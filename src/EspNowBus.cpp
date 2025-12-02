@@ -471,6 +471,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         if (payloadLen < static_cast<int>(sizeof(AppAckPayload))) return;
         const AppAckPayload* ack = reinterpret_cast<const AppAckPayload*>(payload);
         if (instance_->txInFlight_ && instance_->currentTx_.expectAck && ack->msgId == instance_->currentTx_.msgId) {
+            instance_->waitingAppAckId_ = 0;
             if (instance_->onSendResult_) instance_->onSendResult_(mac, SendStatus::AppAckReceived);
             instance_->freeBuffer(instance_->currentTx_.bufferIndex);
             instance_->txInFlight_ = false;
@@ -516,10 +517,12 @@ void EspNowBus::handleSendComplete(bool ok, bool timedOut) {
             txDeadlineMs_ = millis() + config_.txTimeoutMs;
             return;
         }
-        if (onSendResult_) onSendResult_(entry.mac, SendStatus::SentOk);
-        freeBuffer(entry.bufferIndex);
-        txInFlight_ = false;
-        retryCount_ = 0;
+        if (!entry.expectAck) {
+            if (onSendResult_) onSendResult_(entry.mac, SendStatus::SentOk);
+            freeBuffer(entry.bufferIndex);
+            txInFlight_ = false;
+            retryCount_ = 0;
+        }
     } else {
         if (retryCount_ < config_.maxRetries) {
             retryCount_++;
@@ -552,6 +555,7 @@ bool EspNowBus::sendNextIfIdle(TickType_t waitTicks) {
         retryCount_ = 0;
         txInFlight_ = startSend(item);
         txDeadlineMs_ = millis() + config_.txTimeoutMs;
+        waitingAppAckId_ = item.expectAck ? item.msgId : 0;
         if (!txInFlight_) {
             freeBuffer(item.bufferIndex);
             if (onSendResult_) onSendResult_(item.mac, SendStatus::SendFailed);
@@ -592,8 +596,10 @@ void EspNowBus::sendTaskLoop() {
                     currentTx_.isRetry = true;
                     startSend(currentTx_);
                     currentTx_.appAckDeadlineMs = millis() + config_.txTimeoutMs;
+                    waitingAppAckId_ = currentTx_.msgId;
                     if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::Retrying);
                 } else {
+                    waitingAppAckId_ = 0;
                     if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::AppAckTimeout);
                     ESP_LOGW(TAG, "app-ack timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", currentTx_.mac[0], currentTx_.mac[1], currentTx_.mac[2], currentTx_.mac[3], currentTx_.mac[4], currentTx_.mac[5]);
                     freeBuffer(currentTx_.bufferIndex);
