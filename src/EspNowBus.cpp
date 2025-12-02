@@ -372,30 +372,30 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
             return;
         }
     } else if (type == PacketType::ControlJoinReq) {
-        // Add peer and reply with Ack
         if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
-            instance_->addPeer(mac);
-            // Drop duplicate JOIN by seq window (reuse broadcast window)
-            if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id)) {
+            // Drop duplicate JOIN by join window
+            if (!instance_->acceptJoinSeq(instance_->peers_[idx], id)) {
                 return;
             }
+            instance_->addPeer(mac);
             if (payloadLen >= kNonceLen) {
                 uint8_t ackPayload[kNonceLen * 2];
                 memcpy(ackPayload, payload, kNonceLen); // echo nonceA
                 esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
+                memcpy(instance_->peers_[idx].lastNonceB, ackPayload + kNonceLen, kNonceLen);
                 instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
             }
         }
         return;
     } else if (type == PacketType::ControlJoinAck) {
-        // Ensure peer is registered
         if (idx < 0) {
-            instance_->addPeer(mac);
+            idx = instance_->ensurePeer(mac);
         }
-        if (payloadLen >= static_cast<int>(kNonceLen * 2) && instance_->pendingJoin_) {
-            if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
-                instance_->pendingJoin_ = false; // success
-                // nonceB is payload+kNonceLen; could be stored for future use
+        if (idx >= 0 && payloadLen >= static_cast<int>(kNonceLen * 2)) {
+            if (instance_->pendingJoin_ && memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
+                instance_->pendingJoin_ = false; // Authenticated responder
+                // Optionally store nonceB for future rejoin validation
+                memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
             }
         }
         return;
@@ -586,5 +586,28 @@ bool EspNowBus::acceptBroadcastSeq(PeerInfo& peer, uint16_t seq) {
         peer.lastBroadcastBase = seq;
         return true;
     }
+    return true;
+}
+
+bool EspNowBus::acceptJoinSeq(PeerInfo& peer, uint16_t seq) {
+    uint16_t base = peer.lastJoinSeqBase;
+    uint16_t dist = static_cast<uint16_t>(seq - base);
+    if (dist == 0) return false;
+    if (dist <= kNonceWindow) {
+        uint64_t bit = 1ULL << ((dist - 1) % 64);
+        if (peer.joinWindow & bit) {
+            return false;
+        }
+        peer.joinWindow |= bit;
+        return true;
+    }
+    uint16_t shift = dist - 1;
+    if (shift >= 64) {
+        peer.joinWindow = 0;
+    } else {
+        peer.joinWindow <<= shift;
+    }
+    peer.joinWindow |= 1ULL;
+    peer.lastJoinSeqBase = seq;
     return true;
 }

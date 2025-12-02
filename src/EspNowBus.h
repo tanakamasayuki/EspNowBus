@@ -38,6 +38,7 @@ public:
     static constexpr uint8_t  kAuthTagLen = 16;
     static constexpr uint16_t kReplayWindow = 64;
     static constexpr uint8_t  kNonceLen = 8;
+    static constexpr uint16_t kNonceWindow = 128;
 
     enum PacketType : uint8_t {
         DataUnicast = 1,
@@ -107,6 +108,10 @@ private:
         uint16_t lastMsgId = 0;
         uint16_t lastBroadcastBase = 0;
         uint64_t bcastWindow = 0; // bit0 = base+1 ... bit63 = base+64
+
+        uint16_t lastJoinSeqBase = 0;
+        uint64_t joinWindow = 0;
+        uint8_t lastNonceB[kNonceLen]{};
     };
 
     Config config_{};
@@ -167,4 +172,5 @@ private:
     void computeAuthTag(uint8_t* out, const uint8_t* msg, size_t len, const uint8_t* key);
     bool verifyAuthTag(const uint8_t* msg, size_t len, uint8_t pktType);
     bool acceptBroadcastSeq(PeerInfo& peer, uint16_t seq);
+    bool acceptJoinSeq(PeerInfo& peer, uint16_t seq);
 };
