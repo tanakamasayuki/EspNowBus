@@ -41,6 +41,11 @@ public:
         uint16_t replayWindowJoin = 64;
 
         bool enableAppAck = true;
+
+        // auto-purge settings
+        uint8_t  maxAckFailures   = 0;      // 0 = disabled
+        uint32_t failureWindowMs  = 30000;  // window to count consecutive failures
+        bool     rejoinAfterPurge = false;  // sendRegistrationRequest after purge
     };
 
     // sendTimeout special values
