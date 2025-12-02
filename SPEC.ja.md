@@ -269,7 +269,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - アプリ層 ACK（論理 ACK）: `enableAppAck=true` の場合、ユニキャスト受信時に msgId を含む Ack パケットを自動返信し、送信側は Ack 未達ならリトライ/再JOIN を行う  
   - 物理 ACK が無くても論理 ACK を受け取れた場合は「到達成功」とみなしつつ警告ログを残す  
   - 物理 ACK だけで論理 ACK が無い場合は「未達/不明」としてリトライまたは再JOIN を行う
-  - app-ACK 有効のユニキャストでは `AppAckReceived` を最終成功、`AppAckTimeout` を失敗として通知し、`SentOk` は app-ACK 無効時のみの完了通知
+  - app-ACK 有効のユニキャストでは `AppAckReceived` を最終成功、`AppAckTimeout` を失敗として通知し、`SentOk` は app-ACK 無効時のみの完了通知（物理 ACK は完了判定に使わない）
   - onSendResult の完了は AppAckReceived（論理 ACK）を以て成功とし、AppAckTimeout で失敗扱い（物理送信成功だけでは完了としない）
 
 ### 8.2 受信
