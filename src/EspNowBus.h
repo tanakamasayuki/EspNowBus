@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#include <esp_now.h>
 
 // ESP32 ESP-NOW message bus (design in SPEC.ja.md). Implementation is WIP.
 // APIs are stubbed so the library can be included and built while the core logic is developed.
