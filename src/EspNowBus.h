@@ -253,4 +253,9 @@ private:
     bool acceptJoinSeq(PeerInfo &peer, uint16_t seq);
     void reseedCounters(uint32_t now);
     bool acceptAppAck(PeerInfo &peer, uint16_t msgId);
+
+    // failure tracking
+    void recordSendFailure(const uint8_t mac[6]);
+    void recordSendSuccess(const uint8_t mac[6]);
+    void purgePeer(int idx);
 };

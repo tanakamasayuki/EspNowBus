@@ -688,6 +688,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
         {
             if (instance_->onSendResult_)
                 instance_->onSendResult_(mac, SendStatus::AppAckReceived);
+            instance_->recordSendSuccess(mac);
             instance_->freeBuffer(instance_->currentTx_.bufferIndex);
             instance_->txInFlight_ = false;
             instance_->retryCount_ = 0;
@@ -750,6 +751,7 @@ void EspNowBus::handleSendComplete(bool ok, bool timedOut)
         }
         if (onSendResult_)
             onSendResult_(entry.mac, SendStatus::SentOk);
+        recordSendSuccess(entry.mac);
         freeBuffer(entry.bufferIndex);
         txInFlight_ = false;
         retryCount_ = 0;
@@ -780,6 +782,7 @@ void EspNowBus::handleSendComplete(bool ok, bool timedOut)
         {
             ESP_LOGE(TAG, "send failed mac=%02X:%02X:%02X:%02X:%02X:%02X", entry.mac[0], entry.mac[1], entry.mac[2], entry.mac[3], entry.mac[4], entry.mac[5]);
         }
+        recordSendFailure(entry.mac);
         freeBuffer(entry.bufferIndex);
         txInFlight_ = false;
         retryCount_ = 0;
@@ -855,6 +858,7 @@ void EspNowBus::sendTaskLoop()
                     if (onSendResult_)
                         onSendResult_(currentTx_.mac, SendStatus::AppAckTimeout);
                     ESP_LOGW(TAG, "app-ack timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", currentTx_.mac[0], currentTx_.mac[1], currentTx_.mac[2], currentTx_.mac[3], currentTx_.mac[4], currentTx_.mac[5]);
+                    recordSendFailure(currentTx_.mac);
                     freeBuffer(currentTx_.bufferIndex);
                     txInFlight_ = false;
                     retryCount_ = 0;
@@ -945,6 +949,57 @@ void EspNowBus::reseedCounters(uint32_t now)
     esp_fill_random(&msgCounter_, sizeof(msgCounter_));
     esp_fill_random(&broadcastSeq_, sizeof(broadcastSeq_));
     ESP_LOGI(TAG, "reseed counters");
+}
+
+void EspNowBus::recordSendFailure(const uint8_t mac[6])
+{
+    if (config_.maxAckFailures == 0)
+        return;
+    static uint8_t lastMac[6] = {0};
+    static uint8_t failCount = 0;
+    static uint32_t lastFailTs = 0;
+
+    uint32_t now = millis();
+    if (memcmp(lastMac, mac, 6) != 0 || (now - lastFailTs) > config_.failureWindowMs)
+    {
+        memcpy(lastMac, mac, 6);
+        failCount = 0;
+    }
+    lastFailTs = now;
+    failCount++;
+    if (failCount > config_.maxAckFailures)
+    {
+        int idx = findPeerIndex(mac);
+        if (idx >= 0)
+        {
+            ESP_LOGW(TAG, "purging peer after failures mac=%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            purgePeer(idx);
+            if (config_.rejoinAfterPurge)
+            {
+                sendRegistrationRequest();
+            }
+        }
+        failCount = 0;
+    }
+}
+
+void EspNowBus::recordSendSuccess(const uint8_t mac[6])
+{
+    (void)mac;
+    static uint8_t lastMac[6] = {0};
+    static uint8_t failCount = 0;
+    static uint32_t lastFailTs = 0;
+    memset(lastMac, 0, sizeof(lastMac));
+    failCount = 0;
+    lastFailTs = 0;
+}
+
+void EspNowBus::purgePeer(int idx)
+{
+    if (idx < 0 || idx >= static_cast<int>(kMaxPeers))
+        return;
+    esp_now_del_peer(peers_[idx].mac);
+    peers_[idx].inUse = false;
 }
 
 bool EspNowBus::acceptBroadcastSeq(PeerInfo &peer, uint16_t seq)
