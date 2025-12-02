@@ -72,7 +72,7 @@ void loop() {
 - `enableAppAck` (default `true`): auto app-level ACKs for unicast. When enabled, delivery success is signaled by `AppAckReceived`; missing app-ACK triggers retries and `AppAckTimeout`.
 - Not ISR-safe: `sendTo`/`broadcast` cannot be called from ISR (queue/blocking APIs are used).
 - `replayWindowBcast` (default `64`): broadcast replay window (set 0 to disable).
-- `replayWindowJoin` (default `128`): JOIN replay window（how many JOIN seq to remember; set 0 to disable replay drop). Helps avoid processing duplicate JOINs during bursts or retries.
+- `replayWindowJoin` (default `64`): JOIN replay window（how many JOIN seq to remember; set 0 to disable replay drop). Helps avoid processing duplicate JOINs during bursts or retries. Values >64 are clamped internally (64-bit window).
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  

@@ -71,7 +71,7 @@ void loop() {
 - `enableAppAck` (既定 true): ユニキャストにアプリ層 ACK を自動付与。成功は `AppAckReceived`、未達はリトライののち `AppAckTimeout` で通知。
 - ISR 非対応: `sendTo`/`broadcast` は ISR から呼べない（ブロッキング API を使用するため）。
 - `replayWindowBcast` (既定 64): Broadcast のリプレイ窓（0 で無効）。
-- `replayWindowJoin` (既定 128): JOIN のリプレイ窓（最近の JOIN seq を何件覚えて重複を落とすか。0 で無効）。同時多発の JOIN やリトライ時の重複処理を避ける用途。
+- `replayWindowJoin` (既定 64): JOIN のリプレイ窓（最近の JOIN seq を何件覚えて重複を落とすか。0 で無効）。同時多発の JOIN やリトライ時の重複処理を避ける用途。内部は 64bit 窓なので 64 を超える値は 64 に丸められます。
 
 ### 送信ごとのタイムアウト上書き
 `sendTo` / `sendToAllPeers` / `broadcast` に任意の `timeoutMs` を指定可能。  

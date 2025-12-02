@@ -99,6 +99,7 @@ groupSecret → groupId / keyAuth / keyBcast
 - `flags`（1）: ビットフラグ  
   - bit0: `isRetry`（同一 `msgId`/`seq` の再送時に 1）  
   - bit1〜7: 予約
+- `id`（2）: Unicast は msgId、Broadcast/JOIN は seq
 
 ### 6.2 PacketType 一覧
 - `DataUnicast`  
@@ -180,7 +181,7 @@ struct Config {
 
     // リプレイ窓サイズ（可変設定）
     uint16_t replayWindowBcast = 64;        // Broadcast 用
-    uint16_t replayWindowJoin  = 128;       // JOIN 用
+    uint16_t replayWindowJoin  = 64;        // JOIN 用（内部窓は64まで）
 };
 ```
 
@@ -300,6 +301,7 @@ ControlJoinReq をブロードキャスト（groupId + authTag）
 - 論理 ACK: 受信側が重複と判定して UserPayload を渡さなかった場合でも、`enableAppAck=true` なら msgId を含む Ack を返信する（送信側の再送抑止のため）
 - onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout` を固定列挙で定義
 - ControlAppAck のリプレイ: in-flight の msgId と一致するもののみ受理し、その他は無視（警告ログ）。16bit msgId の wrap によりごく稀に誤完了の可能性はあるが許容する方針
+- リプレイ窓設定 `replayWindowBcast`/`Join` は実質 64 が上限（内部は 64bit）。設定値が 64 を超える場合は 64 に丸めて扱う
 
 ---
 
