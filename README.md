@@ -69,6 +69,7 @@ void loop() {
 - `taskCore` (default `ARDUINO_RUNNING_CORE`): FreeRTOS send-task core pinning. `-1` for unpinned, `0` or `1` to pin; default matches the loop task.
 - `taskPriority` (default `3`): send-task priority; keep above loop(1) but below WiFi internals (≈4–5).
 - `taskStackSize` (default `4096`): send-task stack size (bytes).
+- `enableAppAck` (default `true`): auto app-level ACKs for unicast. When enabled, delivery success is signaled by `AppAckReceived`; missing app-ACK triggers retries and `AppAckTimeout`.
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  
@@ -91,6 +92,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - JOIN replay is limited by a separate window; Ack also returns a responder nonceB (currently stored for future validation).
 - App-level ACKs (`enableAppAck=true` by default): receiver auto-replies with msgId-based ACKs; sender treats missing app-ACK as undelivered (even if ESP-NOW reported success). If an app-ACK arrives without a physical ACK, mark delivered but log a warning.
 - On restart/drift: JOIN re-run with fresh tokens; prevToken mismatch is treated as fresh join (state is reset) to recover automatically.
+- SendStatus semantics: for app-ACK-enabled unicast, completion is `AppAckReceived` (success) or `AppAckTimeout`; `SentOk` indicates only physical TX success when app-ACK is disabled.
 
 ## Callbacks
 - `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.

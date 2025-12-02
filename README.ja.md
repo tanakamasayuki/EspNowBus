@@ -68,6 +68,7 @@ void loop() {
 - `taskCore` (既定 `ARDUINO_RUNNING_CORE`): 送信タスクをピン留めするコア。`-1` で無指定、`0/1` で指定。デフォルトは loop と同じコア。
 - `taskPriority` (既定 3): 送信タスク優先度。loop(1) より高く、WiFi 内部タスク(4〜5) より低めを推奨。
 - `taskStackSize` (既定 4096): 送信タスクのスタックサイズ（バイト）。
+- `enableAppAck` (既定 true): ユニキャストにアプリ層 ACK を自動付与。成功は `AppAckReceived`、未達はリトライののち `AppAckTimeout` で通知。
 
 ### 送信ごとのタイムアウト上書き
 `sendTo` / `sendToAllPeers` / `broadcast` に任意の `timeoutMs` を指定可能。  
@@ -90,6 +91,7 @@ void loop() {
 - JOIN も別窓でリプレイ制限し、Ack には responder 側の nonceB も返却（現状は保管のみ、今後の検証に利用予定）。
 - 論理 ACK（`enableAppAck=true` が既定）: 受信側が msgId 付きで自動返信。物理 ACK だけでは到達保証せず、論理 ACK 未達は未達扱いでリトライ/再JOIN。物理 ACK 無しで論理 ACK が来た場合は成功扱いだが警告ログを残す。
 - 再起動などで prevToken がずれても、新規 JOIN として扱い直して復旧するポリシーにしている。
+- SendStatus の解釈: app-ACK 有効のユニキャストは `AppAckReceived` が成功、`AppAckTimeout` が失敗。`SentOk` は app-ACK 無効時の物理送信成功に限る。
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。
