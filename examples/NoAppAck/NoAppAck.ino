@@ -52,6 +52,8 @@ void loop()
   static uint32_t lastJoin = 0;
   static uint32_t lastSend = 0;
 
+  // en: Periodically ask others to register us (helps when peers reboot)
+  // ja: 定期的にピア登録を依頼（相手が再起動しても再登録できるように）
   if (millis() - lastJoin > 5000)
   {
     lastJoin = millis();

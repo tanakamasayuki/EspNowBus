@@ -90,6 +90,7 @@ void loop() {
 - `examples/MasterSlave/Master` / `.../Slave`: マスタは登録を受け付け、スレーブ（センサ）は受け付けない構成。スレーブが定期JOINでマスタを探し、`sendToAllPeers` でデータを送る（マルチマスタも可）。
 - `examples/AutoPurge`: 連続 `AppAckTimeout`/`SendFailed` で自動パージし、JOIN/パージのコールバックを表示。リンク不安定な環境での自動復旧の例。
 - `examples/SendStatusDemo`: `SendStatus` を switch で確認するデモ。app-ACK 有効時は相手が落ちていない限り自動再送で隠れることもある。
+- `examples/NoAppAck`: AppAck 無効の例。`onAppAck` を設定しても呼ばれず、`SentOk` は物理送信成功のみ（軽量運用向け）。
 
 ### リトライと重複扱い
 - 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。

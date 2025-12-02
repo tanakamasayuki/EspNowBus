@@ -91,6 +91,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - `examples/MasterSlave/Master`, `.../Slave`: Master accepts registrations; slave (sensors) does not. Slaves hunt for masters (periodic JOIN) and push data with `sendToAllPeers`, suitable for sensor→gateway with multiple masters.
 - `examples/AutoPurge`: Demonstrates auto-purge on consecutive AppAckTimeout/SendFailed and uses callbacks (`onJoinEvent`, `onPeerPurged`) to observe state changes. Useful for unstable links where peers drop out and should be re-JOINed automatically.
 - `examples/SendStatusDemo`: Shows how to inspect `SendStatus` via switch; with app-ACK enabled, auto-retries will hide transient issues unless the peer stays down.
+- `examples/NoAppAck`: App-level ACK disabled; `onAppAck` is set but not called. Use this to see physical `SentOk` only (lightweight, no logical delivery check).
 
 ### Retries and duplicate handling
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
