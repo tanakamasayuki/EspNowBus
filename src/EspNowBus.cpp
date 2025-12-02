@@ -276,6 +276,10 @@ void EspNowBus::freeBuffer(uint16_t idx) {
 }
 
 bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac, const void* data, size_t len, uint32_t timeoutMs) {
+    if (xPortInIsrContext()) {
+        ESP_LOGE(TAG, "send called from ISR not supported");
+        return false;
+    }
     if (!sendQueue_) return false;
     const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck);
     const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;

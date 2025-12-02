@@ -70,6 +70,7 @@ void loop() {
 - `taskPriority` (default `3`): send-task priority; keep above loop(1) but below WiFi internals (≈4–5).
 - `taskStackSize` (default `4096`): send-task stack size (bytes).
 - `enableAppAck` (default `true`): auto app-level ACKs for unicast. When enabled, delivery success is signaled by `AppAckReceived`; missing app-ACK triggers retries and `AppAckTimeout`.
+- Not ISR-safe: `sendTo`/`broadcast` cannot be called from ISR (queue/blocking APIs are used).
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  
