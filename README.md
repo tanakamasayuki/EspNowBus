@@ -107,7 +107,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - SendStatus semantics: for app-ACK-enabled unicast, completion is `AppAckReceived` (success) or `AppAckTimeout`; `SentOk` indicates only physical TX success when app-ACK is disabled.
 - ControlAppAck: a unicast control packet carrying msgId (id field = msgId) with keyAuth HMAC; sent automatically when `enableAppAck` is true. Duplicates still emit AppAck to stop retries.
 
-### Status list (current)
+### Status list
 `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout`.
 
 ## Callbacks

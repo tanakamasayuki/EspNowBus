@@ -106,7 +106,7 @@ void loop() {
 - SendStatus の解釈: app-ACK 有効のユニキャストは `AppAckReceived` が成功、`AppAckTimeout` が失敗。`SentOk` は app-ACK 無効時の物理送信成功に限る。
 - ControlAppAck: msgId をヘッダ id とペイロードに持ち、keyAuth HMAC を付けたユニキャストの論理 ACK（`enableAppAck` true の場合に自動送信）。重複受信でも AppAck を返して再送を止める。
 
-### SendStatus 一覧（現行）
+### SendStatus 一覧
 `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout`
 
 ## コールバック
