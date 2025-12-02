@@ -154,6 +154,14 @@ struct Config {
 };
 ```
 
+### 7.3 ログ出力
+- ESP-IDF のログマクロ（`ESP_LOGE/W/I/D/V`）を利用する。デフォルトタグは `"EspNowBus"`。
+- 主な出力例（目安）:
+  - `ESP_LOGE`: `begin` 失敗（esp_now_init/メモリ確保/タスク生成）、peer 追加失敗、HMAC 検証失敗（原因付き）、リトライ枯渇による送信失敗
+  - `ESP_LOGW`: 送信タイムアウト、キュー満杯でドロップ、JOIN リプレイ検出、未知の PacketType 受信
+  - `ESP_LOGI`: `begin` 成功、JOIN 成功（Ack 確認）、peer 追加/削除
+  - `ESP_LOGD/V`: デバッグ用途（seq/msgId/リトライ回数など詳細トレース）
+
 推奨値の目安:
 - フル MTU を使いたい場合は `maxPayloadBytes = 1470`（デフォルト）。  
 - 互換性・メモリ重視では `maxPayloadBytes = 250`（kMaxPayloadLegacy）に下げ、`maxQueueLength` もメモリに合わせて調整。
