@@ -88,6 +88,8 @@ void loop() {
 - Broadcast / Control パケットには groupId と HMAC(16B) を付与（keyBcast または keyAuth を使用）。受信側は検証し、誤りを破棄。Broadcast は peer ごとに 64 エントリのスライド窓でリプレイ防止。
 - JOIN パケットには 8 バイトの nonce を含め、Ack でエコー。完全なチャレンジレスポンスは今後の課題。
 - JOIN も別窓でリプレイ制限し、Ack には responder 側の nonceB も返却（現状は保管のみ、今後の検証に利用予定）。
+- 論理 ACK（`enableAppAck=true` が既定）: 受信側が msgId 付きで自動返信。物理 ACK だけでは到達保証せず、論理 ACK 未達は未達扱いでリトライ/再JOIN。物理 ACK 無しで論理 ACK が来た場合は成功扱いだが警告ログを残す。
+- 再起動などで prevToken がずれても、新規 JOIN として扱い直して復旧するポリシーにしている。
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。

@@ -89,6 +89,8 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay is limited via a 64-entry sliding window per peer.
 - JOIN packets carry an 8-byte nonce; Acceptors echo it back in Ack. Full challenge/response is still TODO.
 - JOIN replay is limited by a separate window; Ack also returns a responder nonceB (currently stored for future validation).
+- App-level ACKs (`enableAppAck=true` by default): receiver auto-replies with msgId-based ACKs; sender treats missing app-ACK as undelivered (even if ESP-NOW reported success). If an app-ACK arrives without a physical ACK, mark delivered but log a warning.
+- On restart/drift: JOIN re-run with fresh tokens; prevToken mismatch is treated as fresh join (state is reset) to recover automatically.
 
 ## Callbacks
 - `onReceive(cb)`: called for accepted unicast and authenticated broadcast packets.
