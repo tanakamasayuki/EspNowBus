@@ -120,6 +120,11 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - `AppAckReceived`: logical ACK arrived (app-ACK enabled).
 - `AppAckTimeout`: logical ACK did not arrive after retries (app-ACK enabled).
 
+SendStatus notes:
+- Both progress and final results are reported (`Queued`, `Retrying` as progress; `SentOk`/`SendFailed`/`Timeout` or `AppAckReceived`/`AppAckTimeout` as completion). You may see multiple events per packet.
+- Completion states: app-ACK disabled → `SentOk` (success) / `SendFailed` or `Timeout` (failure). app-ACK enabled → `AppAckReceived` (success) / `AppAckTimeout` (failure).
+- In normal operation with healthy peers, auto-retry will often succeed; you may not need to watch every status. For critical requirements, monitor failures to trigger recovery (e.g., re-JOIN or peer purge).
+
 ## Callbacks
 - `onReceive(cb)`: accepted unicast and authenticated broadcast packets.
 - `onSendResult(cb)`: delivery result per queued packet. With app-ACK enabled, success/timeout are `AppAckReceived`/`AppAckTimeout` (use this for completion).

@@ -119,6 +119,10 @@ void loop() {
 - `AppAckReceived`: 論理ACK受信（app-ACK 有効時）
 - `AppAckTimeout`: 論理ACK未達（リトライ枯渇、app-ACK 有効時）
 
+SendStatus の扱い:
+- 進捗 (`Queued`, `Retrying`) と最終結果（app-ACK 無効: `SentOk` / `SendFailed`/`Timeout`、app-ACK 有効: `AppAckReceived` / `AppAckTimeout`）の両方を送るため、1パケットにつき複数イベントが届くことがある。
+- 通常はピアが正常なら自動リトライで成功し、細かく見なくてもよい。クリティカル要件では失敗ステータスを監視し、再JOINやパージなどリカバリを行う。
+
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。
 - `onSendResult(cb)`: キュー投入ごとの送信結果を通知。AppAck 有効時の完了判定は `AppAckReceived` / `AppAckTimeout`（基本はこれを見る）。
