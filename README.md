@@ -90,6 +90,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - `examples/SendToAllPeers`: Group-wide message via `sendToAllPeers` (per-peer unicast). Heavier than broadcast, but benefits from encryption/keyAuth and AppAck delivery assurance.
 - `examples/MasterSlave/Master`, `.../Slave`: Master accepts registrations; slave (sensors) does not. Slaves hunt for masters (periodic JOIN) and push data with `sendToAllPeers`, suitable for sensor→gateway with multiple masters.
 - `examples/AutoPurge`: Demonstrates auto-purge on consecutive AppAckTimeout/SendFailed and uses callbacks (`onJoinEvent`, `onPeerPurged`) to observe state changes. Useful for unstable links where peers drop out and should be re-JOINed automatically.
+- `examples/SendStatusDemo`: Shows how to inspect `SendStatus` via switch; with app-ACK enabled, auto-retries will hide transient issues unless the peer stays down.
 
 ### Retries and duplicate handling
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
@@ -107,7 +108,16 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - ControlAppAck: a unicast control packet carrying msgId (id field = msgId) with keyAuth HMAC; sent automatically when `enableAppAck` is true. Duplicates still emit AppAck to stop retries.
 
 ### Status list
-`Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout`.
+- `Queued`: enqueued successfully.
+- `SentOk`: physical send success (app-ACK disabled).
+- `SendFailed`: physical send failed (ESP-NOW failure).
+- `Timeout`: physical send timeout.
+- `DroppedFull`: queue full at enqueue time.
+- `DroppedOldest`: reserved (not used in current implementation).
+- `TooLarge`: payload exceeds `maxPayloadBytes`.
+- `Retrying`: resend in progress.
+- `AppAckReceived`: logical ACK arrived (app-ACK enabled).
+- `AppAckTimeout`: logical ACK did not arrive after retries (app-ACK enabled).
 
 ## Callbacks
 - `onReceive(cb)`: accepted unicast and authenticated broadcast packets.

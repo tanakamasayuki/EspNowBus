@@ -89,6 +89,7 @@ void loop() {
 - `examples/SendToAllPeers`: `sendToAllPeers` で全ピアにユニキャスト同報。ブロードキャストより重いが、暗号化＋HMAC＋AppAck による到達確認を重視する用途に。
 - `examples/MasterSlave/Master` / `.../Slave`: マスタは登録を受け付け、スレーブ（センサ）は受け付けない構成。スレーブが定期JOINでマスタを探し、`sendToAllPeers` でデータを送る（マルチマスタも可）。
 - `examples/AutoPurge`: 連続 `AppAckTimeout`/`SendFailed` で自動パージし、JOIN/パージのコールバックを表示。リンク不安定な環境での自動復旧の例。
+- `examples/SendStatusDemo`: `SendStatus` を switch で確認するデモ。app-ACK 有効時は相手が落ちていない限り自動再送で隠れることもある。
 
 ### リトライと重複扱い
 - 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。
@@ -106,7 +107,16 @@ void loop() {
 - ControlAppAck: msgId をヘッダ id とペイロードに持ち、keyAuth HMAC を付けたユニキャストの論理 ACK（`enableAppAck` true の場合に自動送信）。重複受信でも AppAck を返して再送を止める。
 
 ### SendStatus 一覧
-`Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout`
+- `Queued`: キュー投入成功
+- `SentOk`: 物理送信成功（app-ACK 無効時のみ）
+- `SendFailed`: 物理送信失敗（ESP-NOW 失敗）
+- `Timeout`: 物理送信タイムアウト
+- `DroppedFull`: enqueue 時にキュー満杯でドロップ
+- `DroppedOldest`: 予約（未使用）
+- `TooLarge`: `maxPayloadBytes` 超過
+- `Retrying`: リトライ中
+- `AppAckReceived`: 論理ACK受信（app-ACK 有効時）
+- `AppAckTimeout`: 論理ACK未達（リトライ枯渇、app-ACK 有効時）
 
 ## コールバック
 - `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。
