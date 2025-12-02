@@ -49,6 +49,7 @@ public:
         ControlAppAck = 5,
     };
 
+#pragma pack(push, 1)
     struct JoinReqPayload {
         uint8_t nonceA[kNonceLen];
         uint8_t prevToken[kNonceLen]; // responder's nonceB from previous session, or zero
@@ -62,6 +63,10 @@ public:
     struct AppAckPayload {
         uint16_t msgId;
     };
+#pragma pack(pop)
+    static_assert(sizeof(JoinReqPayload) == kNonceLen * 2, "JoinReqPayload size");
+    static_assert(sizeof(JoinAckPayload) == kNonceLen * 2, "JoinAckPayload size");
+    static_assert(sizeof(AppAckPayload) == 2, "AppAckPayload size");
 
     enum SendStatus : uint8_t {
         Queued,
