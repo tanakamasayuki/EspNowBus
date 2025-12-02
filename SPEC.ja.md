@@ -120,9 +120,25 @@ groupSecret → groupId / keyAuth / keyBcast
 - groupId・authTag が正しい場合のみ onReceive へ渡す
 - `seq`（uint16 など固定幅）は送信元ごとに単調増加。リトライ時は同じ `seq` を使い、`flags.isRetry=1`
 
-#### ControlJoinReq / Ack
-- JOIN / 再JOIN
-- 認証は keyAuth を使用
+#### ControlJoinReq / Ack / AppAck（固定長）
+- 共通: `groupId(4, LE)` + `authTag(16)` を付与し、HMAC は `keyAuth` を使用  
+- ControlJoinReq:
+  - `BaseHeader`（id に seq）
+  - `groupId`
+  - `nonceA[8]`
+  - `prevToken[8]`（前回 responder の nonceB。無ければ 0 埋め）
+  - `authTag = HMAC(keyAuth, header..prevToken)`
+- ControlJoinAck:
+  - `BaseHeader`（id に seq）
+  - `groupId`
+  - `nonceA[8]`（エコー）
+  - `nonceB[8]`（新規生成）
+  - `authTag = HMAC(keyAuth, header..nonceB)`
+- ControlAppAck（ユニキャストの論理 ACK）:
+  - `BaseHeader`（id に msgId）
+  - `groupId`
+  - `msgId`（2byte, LE）
+  - `authTag = HMAC(keyAuth, header..msgId)`
 
 #### ControlAppAck
 - ユニキャストの論理 ACK
