@@ -60,7 +60,7 @@ void loop() {
 - `enablePeerAuth` (default `true`): join-time challenge/response.
 - `enableBroadcastAuth` (default `true`): HMAC-tagged broadcasts with replay checks.
 - `maxQueueLength` (default `16`): outbound queue length.
-- `maxPayloadBytes` (default `1470`): max payload per send (ESP-NOW v2.0 MTU). Use `250` for maximum compatibility/low memory.
+- `maxPayloadBytes` (default `1470`): max payload per send. ESP-IDF 5.4+ supports ~1470 bytes; older IDF is effectively limited to ~250 bytes. Actual usable bytes are smaller due to internal headers (Unicast ≈ `maxPayloadBytes - 6`, Broadcast ≈ `maxPayloadBytes - 6 - 4 - 16`).
 - `maxRetries` (default `1`): resend attempts after the initial send (0 = no retry).
 - `retryDelayMs` (default `0`): delay between retries (defaults to immediate retry when a timeout is detected).
 - `txTimeoutMs` (default `120`): in-flight send timeout; when elapsed, treat as failure and retry or give up.

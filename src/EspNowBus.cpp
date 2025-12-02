@@ -45,6 +45,22 @@ bool EspNowBus::begin(const Config &cfg)
     instance_ = this;
     config_ = cfg;
 
+    uint16_t cap = config_.maxPayloadBytes;
+#ifdef ESP_NOW_MAX_DATA_LEN_V2
+    if (cap > ESP_NOW_MAX_DATA_LEN_V2)
+        cap = ESP_NOW_MAX_DATA_LEN_V2;
+#else
+    if (cap > ESP_NOW_MAX_DATA_LEN)
+        cap = ESP_NOW_MAX_DATA_LEN;
+#endif
+    if (cap < kHeaderSize + 4)
+        cap = kHeaderSize + 4;
+    if (cap != config_.maxPayloadBytes)
+    {
+        ESP_LOGW(TAG, "maxPayloadBytes clipped to %u", cap);
+    }
+    config_.maxPayloadBytes = cap;
+
     if (!deriveKeys(config_.groupName))
     {
         ESP_LOGE(TAG, "key derivation failed");
@@ -358,6 +374,18 @@ void EspNowBus::freeBuffer(uint16_t idx)
 
 bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac, const void *data, size_t len, uint32_t timeoutMs)
 {
+    // enforce payload size bounds by IDF version and header overhead
+    uint16_t maxLen = config_.maxPayloadBytes;
+#ifdef ESP_NOW_MAX_DATA_LEN_V2
+    if (maxLen > ESP_NOW_MAX_DATA_LEN_V2)
+        maxLen = ESP_NOW_MAX_DATA_LEN_V2;
+#else
+    if (maxLen > ESP_NOW_MAX_DATA_LEN)
+        maxLen = ESP_NOW_MAX_DATA_LEN;
+#endif
+    if (maxLen < kHeaderSize + 4)
+        maxLen = kHeaderSize + 4;
+
     if (xPortInIsrContext())
     {
         ESP_LOGE(TAG, "send called from ISR not supported");
@@ -367,11 +395,11 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
         return false;
     const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck);
     const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;
-    if (totalLen > config_.maxPayloadBytes)
+    if (totalLen > maxLen)
     {
         if (onSendResult_)
             onSendResult_(mac, SendStatus::TooLarge);
-        ESP_LOGW(TAG, "payload too large (%u > %u)", static_cast<unsigned>(totalLen), config_.maxPayloadBytes);
+        ESP_LOGW(TAG, "payload too large (%u > %u)", static_cast<unsigned>(totalLen), maxLen);
         return false;
     }
     int16_t bufIdx = allocBuffer();

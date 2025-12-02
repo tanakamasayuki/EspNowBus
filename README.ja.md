@@ -59,7 +59,7 @@ void loop() {
 - `enablePeerAuth` (既定 true): JOIN 時のチャレンジレスポンス。
 - `enableBroadcastAuth` (既定 true): Broadcast の HMAC 認証とリプレイ防止。
 - `maxQueueLength` (既定 16): 送信キュー長。
-- `maxPayloadBytes` (既定 1470): 送信ペイロード上限（ESP-NOW v2.0 MTU 想定）。互換性/省メモリなら 250 に下げる。
+- `maxPayloadBytes` (既定 1470): 送信ペイロード上限。ESP-IDF 5.4 以降は ~1470B、5.3 以前は実質 ~250B が上限。内部ヘッダ分を差し引く必要があり、実際に使えるのは Unicast で約 `maxPayloadBytes-6`、Broadcast で約 `maxPayloadBytes-6-4-16` バイト。
 - `maxRetries` (既定 1): 初回送信後のリトライ回数。0 でリトライなし。
 - `retryDelayMs` (既定 0): リトライ間隔。送信タイムアウト検知後は即再送がデフォルト（バックオフしたい場合のみ設定）。
 - `txTimeoutMs` (既定 120): 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め。
