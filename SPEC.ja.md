@@ -295,6 +295,7 @@ ControlJoinReq をブロードキャスト（groupId + authTag）
 - リプレイ窓幅は 16〜64 程度を想定し、オーバーフロー時も最も近い未来方向のみを受理する簡易窓で実装
 - 論理 ACK: 受信側が重複と判定して UserPayload を渡さなかった場合でも、`enableAppAck=true` なら msgId を含む Ack を返信する（送信側の再送抑止のため）
 - onSendResult のステータス例: `Queued`, `SentOk`, `SendFailed`, `Timeout`, `DroppedFull`, `DroppedOldest`, `TooLarge`, `Retrying`, `AppAckReceived`, `AppAckTimeout` を固定列挙で定義
+- ControlAppAck のリプレイ: in-flight の msgId と一致するもののみ受理し、その他は無視（警告ログ）。16bit msgId の wrap によりごく稀に誤完了の可能性はあるが許容する方針
 
 ---
 
