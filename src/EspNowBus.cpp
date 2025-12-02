@@ -375,6 +375,10 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         // Add peer and reply with Ack
         if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
             instance_->addPeer(mac);
+            // Drop duplicate JOIN by seq window (reuse broadcast window)
+            if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id)) {
+                return;
+            }
             if (payloadLen >= kNonceLen) {
                 uint8_t ackPayload[kNonceLen * 2];
                 memcpy(ackPayload, payload, kNonceLen); // echo nonceA
@@ -391,6 +395,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         if (payloadLen >= static_cast<int>(kNonceLen * 2) && instance_->pendingJoin_) {
             if (memcmp(payload, instance_->pendingNonceA_, kNonceLen) == 0) {
                 instance_->pendingJoin_ = false; // success
+                // nonceB is payload+kNonceLen; could be stored for future use
             }
         }
         return;
