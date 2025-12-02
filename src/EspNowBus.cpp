@@ -370,6 +370,8 @@ int EspNowBus::ensurePeer(const uint8_t mac[6])
             peers_[i].bcastWindow = 0;
             peers_[i].lastJoinSeqBase = 0;
             peers_[i].joinWindow = 0;
+            peers_[i].failCount = 0;
+            peers_[i].lastFailMs = 0;
             if (config_.useEncryption)
             {
                 esp_now_peer_info_t info = makePeerInfo(mac, true, derived_.lmk);
@@ -971,43 +973,38 @@ void EspNowBus::recordSendFailure(const uint8_t mac[6])
 {
     if (config_.maxAckFailures == 0)
         return;
-    static uint8_t lastMac[6] = {0};
-    static uint8_t failCount = 0;
-    static uint32_t lastFailTs = 0;
-
+    int idx = findPeerIndex(mac);
+    if (idx < 0)
+        return;
+    auto &peer = peers_[idx];
     uint32_t now = millis();
-    if (memcmp(lastMac, mac, 6) != 0 || (now - lastFailTs) > config_.failureWindowMs)
+    if ((now - peer.lastFailMs) > config_.failureWindowMs)
     {
-        memcpy(lastMac, mac, 6);
-        failCount = 0;
+        peer.failCount = 0;
     }
-    lastFailTs = now;
-    failCount++;
-    if (failCount > config_.maxAckFailures)
+    peer.lastFailMs = now;
+    peer.failCount++;
+    if (peer.failCount > config_.maxAckFailures)
     {
-        int idx = findPeerIndex(mac);
-        if (idx >= 0)
+        ESP_LOGW(TAG, "purging peer after failures mac=%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        purgePeer(idx);
+        peer.failCount = 0;
+        peer.lastFailMs = now;
+        if (config_.rejoinAfterPurge)
         {
-            ESP_LOGW(TAG, "purging peer after failures mac=%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-            purgePeer(idx);
-            if (config_.rejoinAfterPurge)
-            {
-                sendRegistrationRequest();
-            }
+            sendRegistrationRequest();
         }
-        failCount = 0;
     }
 }
 
 void EspNowBus::recordSendSuccess(const uint8_t mac[6])
 {
     (void)mac;
-    static uint8_t lastMac[6] = {0};
-    static uint8_t failCount = 0;
-    static uint32_t lastFailTs = 0;
-    memset(lastMac, 0, sizeof(lastMac));
-    failCount = 0;
-    lastFailTs = 0;
+    int idx = findPeerIndex(mac);
+    if (idx < 0)
+        return;
+    peers_[idx].failCount = 0;
+    peers_[idx].lastFailMs = 0;
 }
 
 void EspNowBus::purgePeer(int idx)
