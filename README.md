@@ -91,6 +91,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
 - Minimal JOIN flow: `sendRegistrationRequest()` broadcasts a ControlJoinReq; nodes that can accept register the sender and unicast ControlJoinAck back. (No auth/encryption yet.)
 - Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay is limited via a 64-entry sliding window per peer.
+- Even with ESP-NOW encryption disabled, Broadcast/Control/AppAck packets still carry HMAC (keyBcast/keyAuth) for authenticity; keep `enableAppAck` on for delivery assurance.
 - JOIN packets carry an 8-byte nonce; Acceptors echo it back in Ack. Full challenge/response is still TODO.
 - JOIN replay is limited by a separate window; Ack also returns a responder nonceB (currently stored for future validation).
 - App-level ACKs (`enableAppAck=true` by default): receiver auto-replies with msgId-based ACKs; sender treats missing app-ACK as undelivered (even if ESP-NOW reported success). If an app-ACK arrives without a physical ACK, mark delivered but log a warning.

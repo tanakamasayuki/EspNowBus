@@ -90,6 +90,7 @@ void loop() {
 - 送信完了 CB では共有状態を触らず、FreeRTOS のタスク通知（`xTaskNotifyFromISR`）で送信タスクに結果を渡し、送信タスク側でフラグを下ろして `onSendResult` を実行する。
 - 簡易 JOIN フロー: `sendRegistrationRequest()` で ControlJoinReq をブロードキャストし、受け入れ可能ノードが peer 登録して ControlJoinAck をユニキャスト返信（認証・暗号化は未実装）。
 - Broadcast / Control パケットには groupId と HMAC(16B) を付与（keyBcast または keyAuth を使用）。受信側は検証し、誤りを破棄。Broadcast は peer ごとに 64 エントリのスライド窓でリプレイ防止。
+- ESP-NOW 暗号化を OFF にしても、Broadcast/Control/AppAck は HMAC（keyBcast/keyAuth）で認証し、`enableAppAck` は ON のまま運用するのを推奨。
 - JOIN パケットには 8 バイトの nonce を含め、Ack でエコー。完全なチャレンジレスポンスは今後の課題。
 - JOIN も別窓でリプレイ制限し、Ack には responder 側の nonceB も返却（現状は保管のみ、今後の検証に利用予定）。
 - 論理 ACK（`enableAppAck=true` が既定）: 受信側が msgId 付きで自動返信。物理 ACK だけでは到達保証せず、論理 ACK 未達は未達扱いでリトライ/再JOIN。物理 ACK 無しで論理 ACK が来た場合は成功扱いだが警告ログを残す。
