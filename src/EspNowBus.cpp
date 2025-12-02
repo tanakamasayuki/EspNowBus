@@ -6,6 +6,9 @@
 #include <string.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/md.h>
+#include "esp_log.h"
+
+static const char* TAG = "EspNowBus";
 
 EspNowBus* EspNowBus::instance_ = nullptr;
 
@@ -27,6 +30,7 @@ esp_now_peer_info_t makePeerInfo(const uint8_t mac[6], bool encrypt, const uint8
 
 bool EspNowBus::begin(const Config& cfg) {
     if (!cfg.groupName || cfg.maxQueueLength == 0 || cfg.maxPayloadBytes == 0) {
+        ESP_LOGE(TAG, "invalid config (groupName/null or zero lengths)");
         return false;
     }
     // ensure single instance
@@ -34,11 +38,13 @@ bool EspNowBus::begin(const Config& cfg) {
     config_ = cfg;
 
     if (!deriveKeys(config_.groupName)) {
+        ESP_LOGE(TAG, "key derivation failed");
         return false;
     }
 
     WiFi.mode(WIFI_STA);
     if (esp_now_init() != ESP_OK) {
+        ESP_LOGE(TAG, "esp_now_init failed");
         return false;
     }
     if (config_.useEncryption) {
@@ -57,6 +63,7 @@ bool EspNowBus::begin(const Config& cfg) {
     payloadPool_ = static_cast<uint8_t*>(heap_caps_malloc(config_.maxPayloadBytes * poolCount_, MALLOC_CAP_DEFAULT));
     bufferUsed_ = static_cast<bool*>(heap_caps_malloc(poolCount_ * sizeof(bool), MALLOC_CAP_DEFAULT));
     if (!payloadPool_ || !bufferUsed_) {
+        ESP_LOGE(TAG, "buffer allocation failed");
         end();
         return false;
     }
@@ -64,6 +71,7 @@ bool EspNowBus::begin(const Config& cfg) {
 
     sendQueue_ = xQueueCreate(config_.maxQueueLength, sizeof(TxItem));
     if (!sendQueue_) {
+        ESP_LOGE(TAG, "queue allocation failed");
         end();
         return false;
     }
@@ -77,9 +85,11 @@ bool EspNowBus::begin(const Config& cfg) {
                                           config_.taskPriority, &sendTask_, config_.taskCore);
     }
     if (created != pdPASS) {
+        ESP_LOGE(TAG, "send task create failed");
         end();
         return false;
     }
+    ESP_LOGI(TAG, "begin success (enc=%d, queue=%u, payload=%u)", config_.useEncryption, config_.maxQueueLength, config_.maxPayloadBytes);
     return true;
 }
 
@@ -116,6 +126,7 @@ void EspNowBus::end() {
     esp_now_unregister_send_cb();
     esp_now_unregister_recv_cb();
     esp_now_deinit();
+    ESP_LOGI(TAG, "end complete");
 }
 
 bool EspNowBus::sendTo(const uint8_t mac[6], const void* data, size_t len, uint32_t timeoutMs) {
@@ -158,6 +169,7 @@ bool EspNowBus::addPeer(const uint8_t mac[6]) {
     esp_err_t err = esp_now_add_peer(&info);
     if (err != ESP_OK && err != ESP_ERR_ESPNOW_EXIST) {
         peers_[idx].inUse = false;
+        ESP_LOGE(TAG, "add_peer failed err=%d", err);
         return false;
     }
     return true;
@@ -265,6 +277,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t* mac,
     int16_t bufIdx = allocBuffer();
     if (bufIdx < 0) {
         if (onSendResult_) onSendResult_(mac, SendStatus::DroppedFull);
+        ESP_LOGW(TAG, "queue full: drop");
         return false;
     }
 
@@ -353,6 +366,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
     const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck);
     if (needsAuth) {
         if (!instance_->verifyAuthTag(data, len, type)) {
+            ESP_LOGW(TAG, "auth fail or group mismatch type=%u", type);
             return; // auth failed or groupId mismatch
         }
     }
@@ -378,6 +392,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
         if (idx >= 0 && instance_->config_.canAcceptRegistrations) {
             // Drop duplicate JOIN by join window
             if (!instance_->acceptJoinSeq(instance_->peers_[idx], id)) {
+                ESP_LOGW(TAG, "join replay drop");
                 return;
             }
             instance_->addPeer(mac);
@@ -390,7 +405,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 esp_fill_random(ackPayload + kNonceLen, kNonceLen); // nonceB
                 memcpy(instance_->peers_[idx].lastNonceB, ackPayload + kNonceLen, kNonceLen);
                 instance_->enqueueCommon(Dest::Unicast, PacketType::ControlJoinAck, mac, ackPayload, sizeof(ackPayload), kUseDefault);
-                (void)resumed; // reserved for future policy
+                ESP_LOGI(TAG, "join ack sent resumed=%d", resumed);
             }
         }
         return;
@@ -405,6 +420,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
                 memcpy(instance_->peers_[idx].lastNonceB, payload + kNonceLen, kNonceLen);
                 memcpy(instance_->storedNonceB_, payload + kNonceLen, kNonceLen);
                 instance_->storedNonceBValid_ = true;
+                ESP_LOGI(TAG, "join success, peer idx=%d", idx);
             }
         }
         return;
@@ -456,6 +472,11 @@ void EspNowBus::handleSendComplete(bool ok, bool timedOut) {
             return;
         }
         if (onSendResult_) onSendResult_(entry.mac, timedOut ? SendStatus::Timeout : SendStatus::SendFailed);
+        if (timedOut) {
+            ESP_LOGW(TAG, "send timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", entry.mac[0], entry.mac[1], entry.mac[2], entry.mac[3], entry.mac[4], entry.mac[5]);
+        } else {
+            ESP_LOGE(TAG, "send failed mac=%02X:%02X:%02X:%02X:%02X:%02X", entry.mac[0], entry.mac[1], entry.mac[2], entry.mac[3], entry.mac[4], entry.mac[5]);
+        }
         freeBuffer(entry.bufferIndex);
         txInFlight_ = false;
         retryCount_ = 0;
