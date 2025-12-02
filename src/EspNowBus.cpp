@@ -379,7 +379,7 @@ void EspNowBus::onReceiveStatic(const uint8_t* mac, const uint8_t* data, int len
     bool isRetry = (p[3] & 0x01) != 0;
     uint16_t id = static_cast<uint16_t>(p[4]) | (static_cast<uint16_t>(p[5]) << 8);
 
-    const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck);
+    const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck || type == PacketType::ControlAppAck);
     if (needsAuth) {
         if (!instance_->verifyAuthTag(data, len, type)) {
             ESP_LOGW(TAG, "auth fail or group mismatch type=%u", type);
@@ -510,13 +510,12 @@ bool EspNowBus::startSend(const TxItem& item) {
 void EspNowBus::handleSendComplete(bool ok, bool timedOut) {
     if (!txInFlight_) return;
     auto entry = currentTx_;
-
-    // If app-level ACK is expected and we got a physical failure, keep buffer for retry path
-    if (!ok && entry.expectAck) {
-        // fall through to retry logic
-    }
-
     if (ok) {
+        if (entry.expectAck) {
+            // Physical success; wait for app-ack to finalize
+            txDeadlineMs_ = millis() + config_.txTimeoutMs;
+            return;
+        }
         if (onSendResult_) onSendResult_(entry.mac, SendStatus::SentOk);
         freeBuffer(entry.bufferIndex);
         txInFlight_ = false;
@@ -588,11 +587,19 @@ void EspNowBus::sendTaskLoop() {
         if (txInFlight_ && currentTx_.expectAck) {
             uint32_t now2 = millis();
             if (now2 >= currentTx_.appAckDeadlineMs) {
-                if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::AppAckTimeout);
-                ESP_LOGW(TAG, "app-ack timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", currentTx_.mac[0], currentTx_.mac[1], currentTx_.mac[2], currentTx_.mac[3], currentTx_.mac[4], currentTx_.mac[5]);
-                freeBuffer(currentTx_.bufferIndex);
-                txInFlight_ = false;
-                retryCount_ = 0;
+                if (retryCount_ < config_.maxRetries) {
+                    retryCount_++;
+                    currentTx_.isRetry = true;
+                    startSend(currentTx_);
+                    currentTx_.appAckDeadlineMs = millis() + config_.txTimeoutMs;
+                    if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::Retrying);
+                } else {
+                    if (onSendResult_) onSendResult_(currentTx_.mac, SendStatus::AppAckTimeout);
+                    ESP_LOGW(TAG, "app-ack timeout mac=%02X:%02X:%02X:%02X:%02X:%02X", currentTx_.mac[0], currentTx_.mac[1], currentTx_.mac[2], currentTx_.mac[3], currentTx_.mac[4], currentTx_.mac[5]);
+                    freeBuffer(currentTx_.bufferIndex);
+                    txInFlight_ = false;
+                    retryCount_ = 0;
+                }
             }
         }
     }
@@ -657,7 +664,7 @@ bool EspNowBus::verifyAuthTag(const uint8_t* msg, size_t len, uint8_t pktType) {
                    (static_cast<uint32_t>(groupPtr[2]) << 16) |
                    (static_cast<uint32_t>(groupPtr[3]) << 24);
     if (gid != derived_.groupId) return false;
-    const uint8_t* key = (pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) ? derived_.keyAuth : derived_.keyBcast;
+    const uint8_t* key = (pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck) ? derived_.keyAuth : derived_.keyBcast;
     size_t tagOffset = len - kAuthTagLen;
     uint8_t calc[kAuthTagLen];
     computeAuthTag(calc, msg, tagOffset, key);
