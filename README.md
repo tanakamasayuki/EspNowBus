@@ -57,7 +57,12 @@ void loop() {
 - `enablePeerAuth` (default `true`): join-time challenge/response.
 - `enableBroadcastAuth` (default `true`): HMAC-tagged broadcasts with replay checks.
 - `channel` (default `-1`): Wi-Fi channel. `-1` hashes `groupName`/`groupId` to pick 1–13 automatically; any explicit value is clamped to 1–13. Keep all group members on the same channel.
-- `phyRate` (default `WIFI_PHY_RATE_11M_L`): ESP-NOW PHY rate. Increase if you need more throughput (e.g., 2M/11M/24M) and your environment can tolerate it; invalid values fall back to the default. ESP-IDF 5.1+ sets the rate per-peer (including the broadcast peer entry).
+- `phyRate` (default `WIFI_PHY_RATE_11M_L`): ESP-NOW PHY rate. ESP-IDF 5.1+ sets the rate per-peer (including the broadcast peer entry). Invalid values fall back to the default. Practical hints:
+  - `WIFI_PHY_RATE_1M_L` (802.11b): slow but most stable at long range.
+  - `WIFI_PHY_RATE_11M_L` (802.11b): moderate speed, stable up to mid-range.
+  - `WIFI_PHY_RATE_24M` (802.11g): fast at short range, broadly compatible.
+  - `WIFI_PHY_RATE_MCS4_LGI` (802.11n, ~39 Mbps): realistic stable ceiling on plain ESP32.
+  - `WIFI_PHY_RATE_MCS7_LGI` (802.11n, ~65 Mbps): fastest, but often unstable except on ESP32-S3/C3.
 - `maxQueueLength` (default `16`): outbound queue length.
 - `maxPayloadBytes` (default `1470`): max payload per send. ESP-IDF 5.4+ supports ~1470 bytes; older IDF is effectively limited to ~250 bytes. Actual usable bytes are smaller due to internal headers (Unicast ≈ `maxPayloadBytes - 6`, Broadcast ≈ `maxPayloadBytes - 6 - 4 - 16`).
 - `maxRetries` (default `1`): resend attempts after the initial send (0 = no retry).
