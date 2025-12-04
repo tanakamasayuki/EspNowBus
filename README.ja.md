@@ -30,8 +30,8 @@ void setup() {
   cfg.useEncryption = true;
   cfg.maxQueueLength = 16;
 
-  bus.onReceive([](const uint8_t* mac, const uint8_t* data, size_t len) {
-    Serial.printf("From %02X:%02X... len=%d\n", mac[0], mac[1], (int)len);
+  bus.onReceive([](const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast) {
+    Serial.printf("From %02X:%02X... len=%d retry=%d bcast=%d\n", mac[0], mac[1], (int)len, wasRetry, isBroadcast);
   });
 
   bus.onSendResult([](const uint8_t* mac, EspNowBus::SendStatus st) {
@@ -124,10 +124,10 @@ SendStatus の扱い:
 - 通常はピアが正常なら自動リトライで成功し、細かく見なくてもよい。クリティカル要件では失敗ステータスを監視し、再JOINなどでリカバリする。
 
 ## コールバック
-- `onReceive(cb)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。
-- `onSendResult(cb)`: キュー投入ごとの送信結果を通知。AppAck 有効時の完了判定は `AppAckReceived` / `AppAckTimeout`（基本はこれを見る）。
-- `onAppAck(cb)`: 受信した全ての AppAck で呼ばれる（in-flight でなくても）。デバッグやテレメトリ向けで任意。
-- `onJoinEvent(mac, accepted, isAck)`: JOIN 受理/拒否/成功時
+- `onReceive(const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。`wasRetry` が true の場合は送信側がリトライフラグを立てている。`isBroadcast` で経路の違いを判別できる。
+- `onSendResult(const uint8_t* mac, SendStatus status)`: キュー投入ごとの送信結果を通知。AppAck 有効時の完了判定は `AppAckReceived` / `AppAckTimeout`（基本はこれを見る）。
+- `onAppAck(const uint8_t* mac, uint16_t msgId)`: 受信した全ての AppAck で呼ばれる（in-flight でなくても）。デバッグやテレメトリ向けで任意。
+- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN 受理/拒否/成功/タイムアウト離脱時。`accepted=true,isAck=false`=JoinReq 受理、`accepted=true,isAck=true`=JoinAck 受信成功、`accepted=false,isAck=true`=JoinAck 失敗、`accepted=false,isAck=false`=ハートビートタイムアウトで離脱。
 
 ## ドキュメント
 - 仕様詳細: `SPEC.ja.md`

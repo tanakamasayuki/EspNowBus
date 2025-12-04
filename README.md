@@ -30,8 +30,8 @@ void setup() {
   cfg.useEncryption = true;
   cfg.maxQueueLength = 16;
 
-  bus.onReceive([](const uint8_t* mac, const uint8_t* data, size_t len) {
-    Serial.printf("From %02X:%02X... len=%d\n", mac[0], mac[1], (int)len);
+  bus.onReceive([](const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast) {
+    Serial.printf("From %02X:%02X... len=%d retry=%d bcast=%d\n", mac[0], mac[1], (int)len, wasRetry, isBroadcast);
   });
 
   bus.onSendResult([](const uint8_t* mac, EspNowBus::SendStatus st) {
@@ -127,9 +127,10 @@ SendStatus notes:
 
 ## Callbacks
 - `onReceive(cb)`: accepted unicast and authenticated broadcast packets.
-- `onSendResult(cb)`: delivery result per queued packet. With app-ACK enabled, success/timeout are `AppAckReceived`/`AppAckTimeout` (use this for completion).
-- `onAppAck(cb)`: called for every AppAck received (even if not in-flight); typically optional debugging/telemetry.
-- `onJoinEvent(mac, accepted, isAck)`: JOIN accept/reject and Ack handling.
+- `onReceive(const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast)`: accepted unicast or authenticated broadcast; `wasRetry` is true if sender flagged retry, `isBroadcast` tells the path.
+- `onSendResult(const uint8_t* mac, SendStatus status)`: per-queued packet result. With app-ACK enabled, completion is `AppAckReceived`/`AppAckTimeout`.
+- `onAppAck(const uint8_t* mac, uint16_t msgId)`: fired for every AppAck received (even if not in-flight); typically for debugging/telemetry.
+- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN events. `accepted=true,isAck=false`=JoinReq accepted; `accepted=true,isAck=true`=JoinAck success; `accepted=false,isAck=true`=JoinAck mismatch/fail; `accepted=false,isAck=false`=heartbeat timeout (peer removed).
 
 ## Documentation
 - Detailed spec (Japanese): `SPEC.ja.md`

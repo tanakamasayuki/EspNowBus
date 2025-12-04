@@ -855,7 +855,8 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
     }
     if (instance_->onReceive_)
     {
-        instance_->onReceive_(mac, payload, static_cast<size_t>(payloadLen), isRetry);
+        bool isBroadcast = (type == PacketType::DataBroadcast);
+        instance_->onReceive_(mac, payload, static_cast<size_t>(payloadLen), isRetry, isBroadcast);
     }
 }
 
@@ -1013,6 +1014,8 @@ void EspNowBus::sendTaskLoop()
             {
                 ESP_LOGW(TAG, "peer timeout drop mac=%02X:%02X:%02X:%02X:%02X:%02X",
                          p.mac[0], p.mac[1], p.mac[2], p.mac[3], p.mac[4], p.mac[5]);
+                if (onJoinEvent_)
+                    onJoinEvent_(p.mac, false, false); // treat as leave/timeout
                 removePeer(p.mac);
                 p.inUse = false;
                 continue;

@@ -108,7 +108,7 @@ public:
         AppAckReceived
     };
 
-    using ReceiveCallback = void (*)(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry);
+    using ReceiveCallback = void (*)(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry, bool isBroadcast);
     using SendResultCallback = void (*)(const uint8_t *mac, SendStatus status);
     using AppAckCallback = void (*)(const uint8_t *mac, uint16_t msgId);
     using JoinEventCallback = void (*)(const uint8_t mac[6], bool accepted, bool isAck);

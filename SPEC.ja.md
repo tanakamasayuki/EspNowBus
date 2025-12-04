@@ -218,10 +218,10 @@ public:
     bool sendJoinRequest(const uint8_t targetMac[6] = kBroadcastMac, uint32_t timeoutMs = kUseDefault);
 
     // イベントコールバック設定
-    void onReceive(ReceiveCallback cb);       // データ受信時
+    void onReceive(ReceiveCallback cb);       // データ受信時（mac, data, len, wasRetry, isBroadcast）
     void onSendResult(SendResultCallback cb); // 送信完了/失敗時
     void onAppAck(AppAckCallback cb);         // 論理ACK受信時
-    void onJoinEvent(JoinEventCb cb);         // JOIN 受理/拒否/成功時
+    void onJoinEvent(JoinEventCb cb);         // JOIN 受理/拒否/成功/タイムアウトで離脱時
 
     // ピア管理
     bool addPeer(const uint8_t mac[6]);
