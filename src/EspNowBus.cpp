@@ -94,6 +94,7 @@ bool EspNowBus::begin(const Config &cfg)
 
     WiFi.mode(WIFI_STA);
     esp_wifi_get_mac(WIFI_IF_STA, selfMac_);
+    lastAutoJoinMs_ = millis();
     esp_err_t chErr = esp_wifi_set_channel(static_cast<uint8_t>(config_.channel), WIFI_SECOND_CHAN_NONE);
     if (chErr != ESP_OK)
     {
@@ -701,7 +702,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             instance_->peers_[idx].lastSeenMs = millis();
             instance_->peers_[idx].heartbeatStage = 0;
         }
-        if (idx >= 0 && !instance_->acceptBroadcastSeq(instance_->peers_[idx], id))
+        if (!instance_->acceptBroadcastSeq(mac, id))
         {
             ESP_LOGD(TAG, "rx bcast replay drop seq=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
                      static_cast<unsigned>(id),
@@ -990,6 +991,12 @@ void EspNowBus::sendTaskLoop()
     {
         uint32_t nowMs = millis();
         reseedCounters(nowMs);
+        // Auto JOIN scheduler
+        if (config_.autoJoinIntervalMs > 0 && (nowMs - lastAutoJoinMs_) >= config_.autoJoinIntervalMs)
+        {
+            lastAutoJoinMs_ = nowMs;
+            sendJoinRequest();
+        }
         // Heartbeat / liveness maintenance
         for (size_t i = 0; i < kMaxPeers; ++i)
         {
@@ -1173,36 +1180,94 @@ void EspNowBus::recordSendSuccess(const uint8_t mac[6])
     (void)mac;
 }
 
-bool EspNowBus::acceptBroadcastSeq(PeerInfo &peer, uint16_t seq)
+int EspNowBus::findSenderIndex(const uint8_t mac[6]) const
 {
-    uint16_t window = config_.replayWindowBcast;
-    if (window == 0)
+    if (!mac)
+        return -1;
+    for (size_t i = 0; i < kMaxSenders; ++i)
+    {
+        if (senders_[i].inUse && memcmp(senders_[i].mac, mac, 6) == 0)
+            return static_cast<int>(i);
+    }
+    return -1;
+}
+
+int EspNowBus::ensureSender(const uint8_t mac[6])
+{
+    int idx = findSenderIndex(mac);
+    if (idx >= 0)
+    {
+        senders_[idx].lastUsedMs = millis();
+        return idx;
+    }
+    // find free
+    uint32_t now = millis();
+    int freeIdx = -1;
+    for (size_t i = 0; i < kMaxSenders; ++i)
+    {
+        if (!senders_[i].inUse)
+        {
+            freeIdx = static_cast<int>(i);
+            break;
+        }
+    }
+    if (freeIdx < 0)
+    {
+        // evict oldest
+        uint32_t oldest = UINT32_MAX;
+        int oldestIdx = 0;
+        for (size_t i = 0; i < kMaxSenders; ++i)
+        {
+            if (senders_[i].lastUsedMs < oldest)
+            {
+                oldest = senders_[i].lastUsedMs;
+                oldestIdx = static_cast<int>(i);
+            }
+        }
+        freeIdx = oldestIdx;
+    }
+    auto &s = senders_[freeIdx];
+    memcpy(s.mac, mac, 6);
+    s.inUse = true;
+    s.base = 0;
+    s.window = 0;
+    s.lastUsedMs = now;
+    return freeIdx;
+}
+
+bool EspNowBus::acceptBroadcastSeq(const uint8_t mac[6], uint16_t seq)
+{
+    if (config_.replayWindowBcast == 0)
         return true;
-    if (window > 32)
-        window = 32;
-    uint16_t base = peer.lastBroadcastBase;
+    int idx = ensureSender(mac);
+    if (idx < 0)
+        return true;
+    auto &s = senders_[idx];
+    s.lastUsedMs = millis();
+    uint16_t window = config_.replayWindowBcast;
+    uint16_t base = s.base;
     uint16_t dist = static_cast<uint16_t>(seq - base);
     if (dist == 0)
-        return false; // duplicate
+        return false;
     if (dist <= window)
     {
         uint32_t bit = 1UL << (dist - 1);
-        if (peer.bcastWindow & bit)
+        if (s.window & bit)
             return false;
-        peer.bcastWindow |= bit;
+        s.window |= bit;
         return true;
     }
     uint16_t shift = dist - 1;
     if (shift >= 32)
     {
-        peer.bcastWindow = 0;
+        s.window = 0;
     }
     else
     {
-        peer.bcastWindow <<= shift;
+        s.window <<= shift;
     }
-    peer.bcastWindow |= 1UL;
-    peer.lastBroadcastBase = seq;
+    s.window |= 1UL;
+    s.base = seq;
     return true;
 }
 

@@ -33,6 +33,7 @@ public:
         uint16_t retryDelayMs = 0;
         uint32_t txTimeoutMs = 120;
 
+        uint32_t autoJoinIntervalMs = 30000;  // 0=disabled, otherwise periodic JOIN
         uint32_t heartbeatIntervalMs = 10000; // ping cadence; 2x -> targeted join, 3x -> drop
 
         int8_t taskCore = ARDUINO_RUNNING_CORE; // -1 = unpinned, 0/1 = pinned core
@@ -210,6 +211,8 @@ private:
     uint8_t retryCount_ = 0;
     uint32_t txDeadlineMs_ = 0;
     uint32_t lastJoinReqMs_ = 0;
+    uint32_t lastAutoJoinMs_ = 0;
+    uint32_t lastAutoJoinMs_ = 0;
 
     static constexpr uint8_t kMagic = 0xEB;
     static constexpr uint8_t kVersion = 1;
@@ -220,6 +223,16 @@ private:
 
     static constexpr size_t kMaxPeers = 20;
     PeerInfo peers_[kMaxPeers];
+    static constexpr size_t kMaxSenders = 16;
+    struct SenderWindow
+    {
+        uint8_t mac[6]{};
+        bool inUse = false;
+        uint16_t base = 0;
+        uint32_t window = 0;
+        uint32_t lastUsedMs = 0;
+    };
+    SenderWindow senders_[kMaxSenders];
 
     static EspNowBus *instance_;
 
@@ -253,6 +266,8 @@ private:
     bool startSend(const TxItem &item);
     bool enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac, const void *data, size_t len, uint32_t timeoutMs);
     int findPeerIndex(const uint8_t mac[6]) const;
+    int findSenderIndex(const uint8_t mac[6]) const;
+    int ensureSender(const uint8_t mac[6]);
     int ensurePeer(const uint8_t mac[6]);
     uint8_t *bufferPtr(uint16_t idx);
     int16_t allocBuffer();
@@ -260,7 +275,7 @@ private:
     bool deriveKeys(const char *groupName);
     void computeAuthTag(uint8_t *out, const uint8_t *msg, size_t len, const uint8_t *key);
     bool verifyAuthTag(const uint8_t *msg, size_t len, uint8_t pktType);
-    bool acceptBroadcastSeq(PeerInfo &peer, uint16_t seq);
+    bool acceptBroadcastSeq(const uint8_t mac[6], uint16_t seq);
     void reseedCounters(uint32_t now);
     bool acceptAppAck(PeerInfo &peer, uint16_t msgId);
 

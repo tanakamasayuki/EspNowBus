@@ -66,6 +66,7 @@ void loop() {
 - `retryDelayMs` (既定 0): リトライ間隔。送信タイムアウト検知後は即再送がデフォルト（バックオフしたい場合のみ設定）。
 - `txTimeoutMs` (既定 120): 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め。
 - `sendTimeoutMs` (既定 50): 送信キュー投入時のタイムアウト。`0`=非ブロック、`portMAX_DELAY`=無期限。
+- `autoJoinIntervalMs` (既定 30000): JOIN 募集の自動送信間隔。0 で自動募集を無効化。
 - `heartbeatIntervalMs` (既定 10000): ハートビート周期。1x 経過で Ping 送信、2x で対象限定JOIN、3x で切断。
 - `taskCore` (既定 `ARDUINO_RUNNING_CORE`): 送信タスクをピン留めするコア。`-1` で無指定、`0/1` で指定。デフォルトは loop と同じコア。
 - `taskPriority` (既定 3): 送信タスク優先度。loop(1) より高く、WiFi 内部タスク(4〜5) より低めを推奨。

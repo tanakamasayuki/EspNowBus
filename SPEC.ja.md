@@ -172,6 +172,7 @@ struct Config {
     uint8_t  maxRetries       = 1;          // 送信リトライ回数（初回送信を除く）。0 でリトライなし
     uint16_t retryDelayMs     = 0;          // リトライ間隔。送信タイムアウト検知後に即再送が既定なので 0ms（バックオフしたい場合のみ設定）
     uint32_t txTimeoutMs      = 120;        // 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め
+    uint32_t autoJoinIntervalMs = 30000;     // JOIN 募集の自動送信間隔。0 で自動募集を無効化
 
     // ハートビート監視
     uint32_t heartbeatIntervalMs = 10000;   // 生存確認の基準時間。1x でユニキャスト確認、2x で対象限定募集、3x で切断

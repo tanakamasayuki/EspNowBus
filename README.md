@@ -67,6 +67,7 @@ void loop() {
 - `retryDelayMs` (default `0`): delay between retries (defaults to immediate retry when a timeout is detected).
 - `txTimeoutMs` (default `120`): in-flight send timeout; when elapsed, treat as failure and retry or give up.
 - `sendTimeoutMs` (default `50`): queueing timeout when adding to the send queue. `0`=non-blocking, `portMAX_DELAY`=block forever.
+- `autoJoinIntervalMs` (default `30000`): periodic JOIN broadcast interval; `0` disables auto join.
 - `heartbeatIntervalMs` (default `10000`): heartbeat cadence. 1× → send heartbeat ping, 2× → broadcast targeted JOIN, 3× → drop peer.
 - `taskCore` (default `ARDUINO_RUNNING_CORE`): FreeRTOS send-task core pinning. `-1` for unpinned, `0` or `1` to pin; default matches the loop task.
 - `taskPriority` (default `3`): send-task priority; keep above loop(1) but below WiFi internals (≈4–5).
