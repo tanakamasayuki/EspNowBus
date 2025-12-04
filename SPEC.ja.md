@@ -49,7 +49,7 @@
 ## 4. 自動ペア登録
 - ロールや `canAcceptRegistrations` は利用せず、groupId/auth が正しい募集に対して応答・登録するシンプル運用
 - 募集（JOIN 要請）はブロードキャストで送信。既定で 30 秒間隔の自動募集が有効  
-  - `0` を設定すると自動募集は無効化され、手動で `sendRegistrationRequest()` を呼んだときのみ募集を出す  
+  - `0` を設定すると自動募集は無効化され、手動で `sendJoinRequest()` を呼んだときのみ募集を出す  
   - 全体募集（誰でも応募可、`targetMac = ff:ff:ff:ff:ff:ff`）と、特定 MAC を `targetMac` で明示した対象限定募集を使い分けられる
 - 応募側は groupId/auth を検証し、正しければ自動で `addPeer()` する
 
@@ -220,7 +220,8 @@ public:
     bool removePeer(const uint8_t mac[6]);
     bool hasPeer(const uint8_t mac[6]) const;
 
-    bool sendRegistrationRequest();
+    // JOIN 募集（全体 or 対象限定）
+    bool sendJoinRequest(const uint8_t targetMac[6] = kBroadcastMac, uint32_t timeoutMs = kUseDefault);
 
     // イベントコールバック設定
     void onJoinEvent(JoinEventCb cb);   // JOIN 受理/拒否/成功時
@@ -228,6 +229,7 @@ public:
 
 // timeout の特別値
 static constexpr uint32_t kUseDefault = portMAX_DELAY - 1; // Config.sendTimeoutMs を使うための値。portMAX_DELAY は「無期限」
+static constexpr uint8_t  kBroadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}; // JOIN 用全体募集
 static constexpr uint16_t kMaxPayloadDefault = 1470; // ESP-NOW v2.0 の MTU 目安
 static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 ```
@@ -304,9 +306,9 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 
 #### 要求側（全ノード）
 ```
-sendRegistrationRequest()
+sendJoinRequest(targetMac=ff:ff:ff:ff:ff:ff or specific)
 ↓
-ControlJoinReq をブロードキャスト（groupId + authTag）
+ControlJoinReq をブロードキャスト（groupId + authTag + targetMac）
 ```
 
 #### 受け入れ側（全ノード）
