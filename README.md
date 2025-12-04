@@ -9,12 +9,12 @@ Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. 
 - Secure-by-default: ESP-NOW encryption, join-time challenge/response, and authenticated broadcast are enabled unless you turn them off.
 - Auto peer registration: nodes can broadcast join requests; eligible nodes accept and register peers automatically.
 - Deterministic sending: outbound messages are queued and sent one at a time by a FreeRTOS task.
+- Heartbeat-driven liveness: periodic unicast heartbeat (Ping/Pong) and automatic re-JOIN when peers go quiet.
 
 ## Concepts
 - **Group name → keys/IDs**: A `groupName` derives `groupSecret`, `groupId`, `keyAuth` (join auth), and `keyBcast` (broadcast auth).
-- **Roles**: `Master` / `Flat` can accept registrations; `Slave` cannot. Internally managed via `canAcceptRegistrations`.
 - **Packet types**: `DataUnicast`, `DataBroadcast`, `ControlJoinReq`, `ControlJoinAck`, `ControlHeartbeat`, `ControlAppAck`.
-- **Security**: Broadcast packets carry `groupId`, `seq`, and `authTag`; join uses challenge/response; encryption is recommended.
+- **Security**: Broadcast packets carry `groupId`, `seq`, and `authTag`; join uses challenge/response; encryption is recommended. Join/Ack and Heartbeat are sent without ESP-NOW encryption (peer not yet set up) but carry HMAC.
 
 ## Quick start
 ```cpp
@@ -27,7 +27,6 @@ void setup() {
 
   EspNowBus::Config cfg;
   cfg.groupName = "my-group";
-  cfg.canAcceptRegistrations = true;  // Master/Flat
   cfg.useEncryption = true;
   cfg.maxQueueLength = 16;
 
@@ -40,7 +39,7 @@ void setup() {
   });
 
   bus.begin(cfg);
-  bus.sendRegistrationRequest();  // ask peers to add us
+  bus.sendJoinRequest();  // ask peers to add us (broadcast)
 }
 
 void loop() {
@@ -55,7 +54,6 @@ void loop() {
 - `groupName` (required): common group identifier used to derive keys.
 - `useEncryption` (default `true`): ESP-NOW encryption; max 6 peers when enabled.
 - `enablePeerAuth` (default `true`): join-time challenge/response.
-- `enableBroadcastAuth` (default `true`): HMAC-tagged broadcasts with replay checks.
 - `channel` (default `-1`): Wi-Fi channel. `-1` hashes `groupName`/`groupId` to pick 1–13 automatically; any explicit value is clamped to 1–13. Keep all group members on the same channel.
 - `phyRate` (default `WIFI_PHY_RATE_11M_L`): ESP-NOW PHY rate. ESP-IDF 5.1+ sets the rate per-peer (including the broadcast peer entry). Invalid values fall back to the default. Practical hints:
   - `WIFI_PHY_RATE_1M_L` (802.11b): slow but most stable at long range.
@@ -68,16 +66,14 @@ void loop() {
 - `maxRetries` (default `1`): resend attempts after the initial send (0 = no retry).
 - `retryDelayMs` (default `0`): delay between retries (defaults to immediate retry when a timeout is detected).
 - `txTimeoutMs` (default `120`): in-flight send timeout; when elapsed, treat as failure and retry or give up.
-- `canAcceptRegistrations` (default `true`): whether this node can accept new peers.
 - `sendTimeoutMs` (default `50`): queueing timeout when adding to the send queue. `0`=non-blocking, `portMAX_DELAY`=block forever.
+- `heartbeatIntervalMs` (default `10000`): heartbeat cadence. 1× → send heartbeat ping, 2× → broadcast targeted JOIN, 3× → drop peer.
 - `taskCore` (default `ARDUINO_RUNNING_CORE`): FreeRTOS send-task core pinning. `-1` for unpinned, `0` or `1` to pin; default matches the loop task.
 - `taskPriority` (default `3`): send-task priority; keep above loop(1) but below WiFi internals (≈4–5).
 - `taskStackSize` (default `4096`): send-task stack size (bytes).
 - `enableAppAck` (default `true`): auto app-level ACKs for unicast. When enabled, delivery success is signaled by `AppAckReceived`; missing app-ACK triggers retries and `AppAckTimeout`.
 - Not ISR-safe: `sendTo`/`broadcast` cannot be called from ISR (queue/blocking APIs are used).
 - `replayWindowBcast` (default `64`): broadcast replay window (set 0 to disable).
-- `replayWindowJoin` (default `64`): JOIN replay window（how many JOIN seq to remember; set 0 to disable replay drop). Helps avoid processing duplicate JOINs during bursts or retries. Values >64 are clamped internally (64-bit window).
-- `maxAckFailures`/`failureWindowMs`/`rejoinAfterPurge`: optional auto-purge on consecutive `AppAckTimeout`/`SendFailed` (0 disables), with optional auto re-JOIN.
 
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  
@@ -95,23 +91,19 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - `examples/BroadcastAndAck`: Periodic broadcast with app-level ACK. Use when you need group-wide updates but still want logical delivery checks (each listener returns AppAck).
 - `examples/JoinAndUnicast`: Nodes JOIN and then unicast to a random peer. Shows how to recover peers after reboot (periodic JOIN) and confirms delivery with AppAck.
 - `examples/SendToAllPeers`: Group-wide message via `sendToAllPeers` (per-peer unicast). Heavier than broadcast, but benefits from encryption/keyAuth and AppAck delivery assurance.
-- `examples/MasterSlave/Master`, `.../Slave`: Master accepts registrations; slave (sensors) does not. Slaves hunt for masters (periodic JOIN) and push data with `sendToAllPeers`, suitable for sensor→gateway with multiple masters.
-- `examples/AutoPurge`: Demonstrates auto-purge on consecutive AppAckTimeout/SendFailed and uses callbacks (`onJoinEvent`, `onPeerPurged`) to observe state changes. Useful for unstable links where peers drop out and should be re-JOINed automatically.
 - `examples/SendStatusDemo`: Shows how to inspect `SendStatus` via switch; with app-ACK enabled, auto-retries will hide transient issues unless the peer stays down.
 - `examples/NoAppAck`: App-level ACK disabled; `onAppAck` is set but not called. Use this to see physical `SentOk` only (lightweight, no logical delivery check).
 
-### Retries and duplicate handling
+### Retries, JOIN, heartbeat, duplicates
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
 - If the flag stays set longer than `txTimeoutMs`, treat as timeout and retry (or fail) using the same message ID/sequence; `retryDelayMs` defaults to 0 (immediate retry).
 - Retries set a retry flag; receivers drop duplicate `msgId/seq` per peer and may optionally surface "wasRetry" metadata in callbacks.
 - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
-- Minimal JOIN flow: `sendRegistrationRequest()` broadcasts a ControlJoinReq; nodes that can accept register the sender and unicast ControlJoinAck back. (No auth/encryption yet.)
+- JOIN flow: `sendJoinRequest(targetMac)` broadcasts ControlJoinReq (HMAC+targetMac). Acceptors validate `groupId/targetMac/HMAC` and broadcast ControlJoinAck (echo nonceA, add nonceB+targetMac, HMAC). Both sides add peer after Ack and switch to encrypted unicast.
 - Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay is limited via a 64-entry sliding window per peer.
-- Even with ESP-NOW encryption disabled, Broadcast/Control/AppAck packets still carry HMAC (keyBcast/keyAuth) for authenticity; keep `enableAppAck` on for delivery assurance.
-- JOIN packets carry an 8-byte nonce; Acceptors echo it back in Ack. Full challenge/response is still TODO.
-- JOIN replay is limited by a separate window; Ack also returns a responder nonceB (currently stored for future validation).
+- Even with ESP-NOW encryption disabled, Broadcast/Control/AppAck/Heartbeat packets carry HMAC (keyBcast/keyAuth) for authenticity; keep `enableAppAck` on for delivery assurance.
+- Heartbeat: unicast Ping/Pong without AppAck. Pong reception marks liveness; missing heartbeat drives targeted JOIN at 2× interval and disconnect at 3× interval.
 - App-level ACKs (`enableAppAck=true` by default): receiver auto-replies with msgId-based ACKs; sender treats missing app-ACK as undelivered (even if ESP-NOW reported success). If an app-ACK arrives without a physical ACK, mark delivered but log a warning.
-- On restart/drift: JOIN re-run with fresh tokens; prevToken mismatch is treated as fresh join (state is reset) to recover automatically.
 - SendStatus semantics: for app-ACK-enabled unicast, completion is `AppAckReceived` (success) or `AppAckTimeout`; `SentOk` indicates only physical TX success when app-ACK is disabled.
 - ControlAppAck: a unicast control packet carrying msgId (id field = msgId) with keyAuth HMAC; sent automatically when `enableAppAck` is true. Duplicates still emit AppAck to stop retries.
 
@@ -130,14 +122,13 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 SendStatus notes:
 - Both progress and final results are reported (`Queued`, `Retrying` as progress; `SentOk`/`SendFailed`/`Timeout` or `AppAckReceived`/`AppAckTimeout` as completion). You may see multiple events per packet.
 - Completion states: app-ACK disabled → `SentOk` (success) / `SendFailed` or `Timeout` (failure). app-ACK enabled → `AppAckReceived` (success) / `AppAckTimeout` (failure).
-- In normal operation with healthy peers, auto-retry will often succeed; you may not need to watch every status. For critical requirements, monitor failures to trigger recovery (e.g., re-JOIN or peer purge).
+- In normal operation with healthy peers, auto-retry will often succeed; you may not need to watch every status. For critical requirements, monitor failures to trigger recovery（re-JOINなど）.
 
 ## Callbacks
 - `onReceive(cb)`: accepted unicast and authenticated broadcast packets.
 - `onSendResult(cb)`: delivery result per queued packet. With app-ACK enabled, success/timeout are `AppAckReceived`/`AppAckTimeout` (use this for completion).
 - `onAppAck(cb)`: called for every AppAck received (even if not in-flight); typically optional debugging/telemetry.
 - `onJoinEvent(mac, accepted, isAck)`: JOIN accept/reject and Ack handling.
-- `onPeerPurged(mac)`: notified when a peer is auto-purged due to consecutive failures.
 
 ## Documentation
 - Detailed spec (Japanese): `SPEC.ja.md`
