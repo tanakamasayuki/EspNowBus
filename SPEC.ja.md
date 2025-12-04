@@ -213,18 +213,25 @@ public:
     bool sendToAllPeers(const void* data, size_t len, uint32_t timeoutMs = kUseDefault);
     bool broadcast(const void* data, size_t len, uint32_t timeoutMs = kUseDefault);
 
-    void onReceive(ReceiveCallback cb);
-    void onSendResult(SendResultCallback cb);
-
-    bool addPeer(const uint8_t mac[6]);
-    bool removePeer(const uint8_t mac[6]);
-    bool hasPeer(const uint8_t mac[6]) const;
-
     // JOIN 募集（全体 or 対象限定）
     bool sendJoinRequest(const uint8_t targetMac[6] = kBroadcastMac, uint32_t timeoutMs = kUseDefault);
 
     // イベントコールバック設定
-    void onJoinEvent(JoinEventCb cb);   // JOIN 受理/拒否/成功時
+    void onReceive(ReceiveCallback cb);       // データ受信時
+    void onSendResult(SendResultCallback cb); // 送信完了/失敗時
+    void onAppAck(AppAckCallback cb);         // 論理ACK受信時
+    void onJoinEvent(JoinEventCb cb);         // JOIN 受理/拒否/成功時
+
+    // ピア管理
+    bool addPeer(const uint8_t mac[6]);
+    bool removePeer(const uint8_t mac[6]);
+    bool hasPeer(const uint8_t mac[6]) const;
+    size_t peerCount() const;
+    bool getPeer(size_t index, uint8_t macOut[6]) const;
+
+    // キュー状態
+    uint16_t sendQueueFree() const;
+    uint16_t sendQueueSize() const;
 };
 
 // timeout の特別値
