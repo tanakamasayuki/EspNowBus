@@ -1,7 +1,7 @@
 #include <EspNowBus.h>
 
-// en: Demonstrate auto-purge on consecutive AppAckTimeout/SendFailed, with callbacks for join/purge events.
-// ja: AppAckTimeout/SendFailed 連続時の自動パージと、JOIN/パージのコールバック例。
+// en: Demonstrate JOIN callbacks and send status handling (auto-purge removed).
+// ja: JOIN のコールバックと送信ステータスを確認する例（自動パージ機能は廃止）。
 
 EspNowBus bus;
 
@@ -27,14 +27,6 @@ void onJoinEventCb(const uint8_t mac[6], bool accepted, bool isAck)
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], accepted, isAck);
 }
 
-void onPurgeEventCb(const uint8_t mac[6])
-{
-  // en: Notified when a peer is auto-purged
-  // ja: ピアが自動パージされたときに通知
-  Serial.printf("Purged mac=%02X:%02X:%02X:%02X:%02X:%02X\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
 void setup()
 {
   Serial.begin(115200);
@@ -42,21 +34,17 @@ void setup()
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-purge";
-  cfg.maxAckFailures = 3;      // en: 3 consecutive failures to purge / ja: 3回連続の失敗でパージ
-  cfg.failureWindowMs = 20000; // en: Reset count if no communication for over 20 seconds / ja: 最後の通信から20秒以上経過していたらカウントリセット
-  cfg.rejoinAfterPurge = true; // en: Send registration request after purge / ja: パージ後に再JOIN要求
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
   bus.onJoinEvent(onJoinEventCb);
-  bus.onPeerPurged(onPurgeEventCb);
 
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");
   }
 
-  bus.sendRegistrationRequest();
+  bus.sendJoinRequest();
 }
 
 void loop()
@@ -69,7 +57,7 @@ void loop()
   if (millis() - lastJoin > 5000)
   {
     lastJoin = millis();
-    bus.sendRegistrationRequest();
+    bus.sendJoinRequest();
   }
 
   if (millis() - lastSend > 3000)

@@ -34,7 +34,6 @@ void setup()
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-master";
-  cfg.canAcceptRegistrations = true; // en/ja: マスタは登録受け入れ
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);

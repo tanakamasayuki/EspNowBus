@@ -20,8 +20,10 @@ public:
 
         bool useEncryption = true;
         bool enablePeerAuth = true;
+        bool enableAppAck = true;
+
         // Radio
-        int8_t channel = -1;                          // -1 = auto (groupName hash), otherwise clip to 1-13
+        int8_t channel = -1;                           // -1 = auto (groupName hash), otherwise clip to 1-13
         wifi_phy_rate_t phyRate = WIFI_PHY_RATE_11M_L; // default 11M; adjust if you need higher throughput
 
         uint16_t maxQueueLength = 16;
@@ -31,19 +33,13 @@ public:
         uint16_t retryDelayMs = 0;
         uint32_t txTimeoutMs = 120;
 
+        uint32_t heartbeatIntervalMs = 10000; // ping cadence; 2x -> targeted join, 3x -> drop
+
         int8_t taskCore = ARDUINO_RUNNING_CORE; // -1 = unpinned, 0/1 = pinned core
         UBaseType_t taskPriority = 3;
         uint16_t taskStackSize = 4096;
 
-        uint16_t replayWindowBcast = 64;
-        uint16_t replayWindowJoin = 64;
-
-        bool enableAppAck = true;
-
-        // auto-purge settings
-        uint8_t maxAckFailures = 0;       // 0 = disabled
-        uint32_t failureWindowMs = 30000; // window to count consecutive failures
-        bool rejoinAfterPurge = false;    // sendRegistrationRequest after purge
+        uint16_t replayWindowBcast = 32; // broadcast replay window (per sender, max 16 senders, 32-bit window)
     };
 
     // sendTimeout special values
@@ -51,10 +47,11 @@ public:
     static constexpr uint16_t kMaxPayloadDefault = 1470;
     static constexpr uint16_t kMaxPayloadLegacy = 250;
     static constexpr uint8_t kAuthTagLen = 16;
-    static constexpr uint16_t kReplayWindow = 64;
+    static constexpr uint16_t kReplayWindow = 32;
     static constexpr uint8_t kNonceLen = 8;
     static constexpr uint16_t kNonceWindow = 128;
     static constexpr uint32_t kReseedIntervalMs = 60 * 60 * 1000; // periodic key reseed (if desired)
+    static constexpr uint8_t kBroadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     enum PacketType : uint8_t
     {
@@ -62,7 +59,8 @@ public:
         DataBroadcast = 2,
         ControlJoinReq = 3,
         ControlJoinAck = 4,
-        ControlAppAck = 5,
+        ControlHeartbeat = 5,
+        ControlAppAck = 6,
     };
 
 #pragma pack(push, 1)
@@ -70,22 +68,30 @@ public:
     {
         uint8_t nonceA[kNonceLen];
         uint8_t prevToken[kNonceLen]; // responder's nonceB from previous session, or zero
+        uint8_t targetMac[6];
     };
 
     struct JoinAckPayload
     {
         uint8_t nonceA[kNonceLen];
         uint8_t nonceB[kNonceLen];
+        uint8_t targetMac[6];
     };
 
     struct AppAckPayload
     {
         uint16_t msgId;
     };
+
+    struct HeartbeatPayload
+    {
+        uint8_t kind; // 0=Ping, 1=Pong
+    };
 #pragma pack(pop)
-    static_assert(sizeof(JoinReqPayload) == kNonceLen * 2, "JoinReqPayload size");
-    static_assert(sizeof(JoinAckPayload) == kNonceLen * 2, "JoinAckPayload size");
+    static_assert(sizeof(JoinReqPayload) == kNonceLen * 2 + 6, "JoinReqPayload size");
+    static_assert(sizeof(JoinAckPayload) == kNonceLen * 2 + 6, "JoinAckPayload size");
     static_assert(sizeof(AppAckPayload) == 2, "AppAckPayload size");
+    static_assert(sizeof(HeartbeatPayload) == 1, "HeartbeatPayload size");
 
     enum SendStatus : uint8_t
     {
@@ -105,7 +111,6 @@ public:
     using SendResultCallback = void (*)(const uint8_t *mac, SendStatus status);
     using AppAckCallback = void (*)(const uint8_t *mac, uint16_t msgId);
     using JoinEventCallback = void (*)(const uint8_t mac[6], bool accepted, bool isAck);
-    using PurgeEventCallback = void (*)(const uint8_t mac[6]);
 
     bool begin(const Config &cfg);
 
@@ -123,15 +128,13 @@ public:
     void onSendResult(SendResultCallback cb);
     void onAppAck(AppAckCallback cb);
     void onJoinEvent(JoinEventCallback cb);
-    void onPeerPurged(PurgeEventCallback cb);
-
     bool addPeer(const uint8_t mac[6]);
     bool removePeer(const uint8_t mac[6]);
     bool hasPeer(const uint8_t mac[6]) const;
     size_t peerCount() const;
     bool getPeer(size_t index, uint8_t macOut[6]) const;
 
-    bool sendRegistrationRequest();
+    bool sendJoinRequest(const uint8_t targetMac[6] = kBroadcastMac, uint32_t timeoutMs = kUseDefault);
 
     // Queue introspection
     uint16_t sendQueueFree() const;
@@ -169,17 +172,15 @@ private:
         bool inUse = false;
         uint16_t lastMsgId = 0;
         uint16_t lastBroadcastBase = 0;
-        uint64_t bcastWindow = 0; // bit0 = base+1 ... bit63 = base+64
+        uint32_t bcastWindow = 0; // bit0 = base+1 ... bit32 = base+32
 
-        uint16_t lastJoinSeqBase = 0;
-        uint64_t joinWindow = 0;
         uint8_t lastNonceB[kNonceLen]{};
+        bool nonceValid = false;
 
         uint16_t lastAppAckId = 0;
 
-        // failure tracking
-        uint8_t failCount = 0;
-        uint32_t lastFailMs = 0;
+        uint32_t lastSeenMs = 0;    // heartbeat tracking
+        uint8_t heartbeatStage = 0; // 0=normal,1=ping sent,2=targeted join sent
     };
 
     Config config_{};
@@ -187,8 +188,6 @@ private:
     SendResultCallback onSendResult_ = nullptr;
     AppAckCallback onAppAck_ = nullptr;
     JoinEventCallback onJoinEvent_ = nullptr;
-    PurgeEventCallback onPeerPurged_ = nullptr;
-
     struct DerivedKeys
     {
         uint8_t pmk[16]{};      // Primary Master Key for ESP-NOW encryption
@@ -229,6 +228,7 @@ private:
     uint8_t storedNonceB_[kNonceLen]{};
     bool storedNonceBValid_ = false;
     uint32_t lastReseedMs_ = 0;
+    uint8_t selfMac_[6]{};
 
     static void onSendStatic(
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -261,14 +261,12 @@ private:
     void computeAuthTag(uint8_t *out, const uint8_t *msg, size_t len, const uint8_t *key);
     bool verifyAuthTag(const uint8_t *msg, size_t len, uint8_t pktType);
     bool acceptBroadcastSeq(PeerInfo &peer, uint16_t seq);
-    bool acceptJoinSeq(PeerInfo &peer, uint16_t seq);
     void reseedCounters(uint32_t now);
     bool acceptAppAck(PeerInfo &peer, uint16_t msgId);
 
     // failure tracking
     void recordSendFailure(const uint8_t mac[6]);
     void recordSendSuccess(const uint8_t mac[6]);
-    void purgePeer(int idx);
 
     bool applyPeerRate(const uint8_t mac[6]);
 };

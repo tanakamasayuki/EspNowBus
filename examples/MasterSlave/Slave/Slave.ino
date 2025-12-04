@@ -34,7 +34,6 @@ void setup()
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-master";    // en: must match masters / ja: マスターと同じグループ名
-  cfg.canAcceptRegistrations = false; // en: do not accept registrations / ja: スレーブは登録受け入れなし
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
@@ -46,7 +45,7 @@ void setup()
 
   // en: initial registration request to find masters
   // ja: 起動直後にマスター探索
-  bus.sendRegistrationRequest();
+  bus.sendJoinRequest();
 }
 
 void loop()
@@ -62,7 +61,7 @@ void loop()
   if (peers == 0 && millis() - lastJoinFast > 3000)
   {
     lastJoinFast = millis();
-    bus.sendRegistrationRequest();
+    bus.sendJoinRequest();
   }
 
   // en: Even when peers exist, occasionally refresh JOIN for multi-master
@@ -70,7 +69,7 @@ void loop()
   if (millis() - lastJoinSlow > 15000)
   {
     lastJoinSlow = millis();
-    bus.sendRegistrationRequest();
+    bus.sendJoinRequest();
   }
 
   // en: Send sensor-like payload to all known peers

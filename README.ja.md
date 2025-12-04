@@ -34,8 +34,8 @@ void setup() {
     Serial.printf("From %02X:%02X... len=%d\n", mac[0], mac[1], (int)len);
   });
 
-  bus.onSendResult([](const uint8_t* mac, bool ok) {
-    Serial.printf("Send to %02X:%02X... %s\n", mac[0], mac[1], ok ? "OK" : "FAIL");
+  bus.onSendResult([](const uint8_t* mac, EspNowBus::SendStatus st) {
+    Serial.printf("Send to %02X:%02X... status=%d\n", mac[0], mac[1], (int)st);
   });
 
   bus.begin(cfg);

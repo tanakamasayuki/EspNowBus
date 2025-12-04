@@ -57,7 +57,7 @@ void loop()
   if (millis() - lastJoin > 5000)
   {
     lastJoin = millis();
-    bus.sendRegistrationRequest();
+    bus.sendJoinRequest();
   }
 
   if (millis() - lastSend > 3000)

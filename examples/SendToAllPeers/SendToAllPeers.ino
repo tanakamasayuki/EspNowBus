@@ -49,7 +49,7 @@ void setup()
 
   // en: request registration so peers add us
   // ja: 登録を依頼して他ピアに追加してもらう
-  bus.sendRegistrationRequest();
+  bus.sendJoinRequest();
 }
 
 void loop()
@@ -62,7 +62,7 @@ void loop()
   if (millis() - lastJoin > 5000)
   {
     lastJoin = millis();
-    bus.sendRegistrationRequest();
+    bus.sendJoinRequest();
   }
 
   if (millis() - lastSend > 4000)

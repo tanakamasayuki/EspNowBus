@@ -45,7 +45,7 @@ void setup()
     Serial.println("begin failed");
   }
 
-  bus.sendRegistrationRequest();
+  bus.sendJoinRequest();
 }
 
 void loop()
@@ -58,7 +58,7 @@ void loop()
   if (millis() - lastJoin > 5000)
   {
     lastJoin = millis();
-    bus.sendRegistrationRequest();
+    bus.sendJoinRequest();
   }
 
   if (millis() - lastSend > 3000)
