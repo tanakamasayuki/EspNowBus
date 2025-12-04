@@ -303,7 +303,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - ControlHeartbeat → HMAC 検証後、Ping なら生存更新＋Pong を返す（AppAck は使わない）
 
 ### 8.3 自動ペア登録
-- 募集（JOIN 要請）は 30 秒間隔の定期実行が既定。`0` を設定すると自動募集は無効化され、必要なときだけアプリが明示的に `sendRegistrationRequest()` を呼び出す運用になる  
+- 募集（JOIN 要請）は 30 秒間隔の定期実行が既定。`0` を設定すると自動募集は無効化され、必要なときだけアプリが明示的に `sendJoinRequest()` を呼び出す運用になる  
   - 定期募集の間隔は任意に `>0` ms で調整可能  
   - 全体募集（誰でも応募可、`targetMac = ff:ff:ff:ff:ff:ff`）と、特定 MAC を `targetMac` で明示した「対象限定募集」を使い分けられる。後者は既存ペアだけを再接続したいときに使う
 - 受信側の応募判定  
