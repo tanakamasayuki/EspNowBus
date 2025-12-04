@@ -69,9 +69,9 @@ groupSecret → groupId / keyAuth / keyBcast
 - OFF にすると最大 20 peer まで扱えるが、内容は平文
 
 ### 5.3 チャレンジレスポンス（JOIN時）
-- JOIN / 再JOIN の際に実施
+- JOIN / 再JOIN の際に実施（Config.enablePeerAuth の既定は ON。必要なら OFF にしてスキップ可能）
 - `keyAuth` を使った相互認証
-- 暗号化 OFF の場合でも最小限の認証を担保
+- 暗号化 OFF の場合でも最小限の認証を担保（enablePeerAuth を OFF にするとこの保護も外れる）
 
 ### 5.4 ブロードキャスト認証
 - Broadcast パケットには必ず
