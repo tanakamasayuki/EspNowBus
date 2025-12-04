@@ -35,7 +35,8 @@
 - 送信はキューに積み、**1件ずつ送信（直列処理）**
 - 自動ペア登録：
   - 全ノードがブロードキャストで登録要求を出せる
-  - 「受け入れ可能」なノードは自動的に peer 登録
+  - groupId/auth が正しい募集に対して応答し、peer 登録する（ロールや受け入れフラグは使わない）
+  - 募集は既定で 30 秒間隔の自動送信。`0` を設定すると自動募集を無効化できる
 
 ### グループ指向通信の基本思想
 - ESP-NOW の **ブロードキャスト** と **ユニキャスト** を使い分ける  
@@ -45,28 +46,12 @@
 
 ---
 
-## 4. ノードロールと自動ペア登録
-
-### 4.1 ロール
-EspNowBus は「ペア登録を受け入れるかどうか」を簡潔に管理するため  
-以下 3 種類のロール概念を持つ：
-
-| ロール | 説明 |
-|-------|------|
-| **Master** | 中心ノード（ゲートウェイなど）。登録要求を受け入れ可能。 |
-| **Flat** | 対等ノード（ゲームのプレイヤーなど）。登録要求を受け入れ可能。 |
-| **Slave** | **受け入れ不可**。登録依頼だけ投げられる。 |
-
-※ ロールは実装上は `canAcceptRegistrations` フラグで管理される。
-
-### 4.2 自動ペア登録の概要
-- **全ノードが** `ControlJoinReq`（登録要求）をブロードキャスト可能
-- Master / Flat（かつ受け入れON）は：
-  1. JOIN要求を受信
-  2. groupId・authTag を検証
-  3. チャレンジレスポンスで認証
-  4. 合格すれば自動で `addPeer()`  
-- Slave ノードは受け入れ不可
+## 4. 自動ペア登録
+- ロールや `canAcceptRegistrations` は利用せず、groupId/auth が正しい募集に対して応答・登録するシンプル運用
+- 募集（JOIN 要請）はブロードキャストで送信。既定で 30 秒間隔の自動募集が有効  
+  - `0` を設定すると自動募集は無効化され、手動で `sendRegistrationRequest()` を呼んだときのみ募集を出す  
+  - 全体募集（誰でも応募可）と、特定 MAC を明示した対象限定募集を使い分けられる
+- 応募側は groupId/auth を検証し、正しければ自動で `addPeer()` する
 
 ---
 
@@ -184,9 +169,6 @@ struct Config {
     uint16_t retryDelayMs     = 0;       // リトライ間隔。送信タイムアウト検知後に即再送が既定なので 0ms（バックオフしたい場合のみ設定）
     uint32_t txTimeoutMs      = 120;     // 送信中の応答待ちタイムアウト。経過で失敗扱い→リトライまたは諦め
 
-    // このノードが登録要求を「受け入れる権限を持つか」
-    bool canAcceptRegistrations = true;  // Slave にしたい場合は false
-
     // 送信タスク（送信キュー処理）の RTOS 設定
     int8_t taskCore = ARDUINO_RUNNING_CORE; // -1 でピン留めなし、0/1 で指定。既定は loop と同じコア。
     UBaseType_t taskPriority = 3;           // 1〜5 目安。loop(1) より高く、WiFi タスク(4〜5) より低めが推奨。
@@ -226,7 +208,6 @@ public:
     bool begin(const Config& cfg);
 
     bool begin(const char* groupName,
-               bool canAcceptRegistrations = true,
                bool useEncryption = true,
                uint16_t maxQueueLength = 16);
 
@@ -243,8 +224,6 @@ public:
     bool addPeer(const uint8_t mac[6]);
     bool removePeer(const uint8_t mac[6]);
     bool hasPeer(const uint8_t mac[6]) const;
-
-    void setAcceptRegistration(bool enable);
 
     bool sendRegistrationRequest();
 
@@ -315,9 +294,8 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - ControlJoinReq → 自動ペア登録フローへ渡す
 
 ### 8.3 自動ペア登録
-- 募集（JOIN 要請）はブロードキャストで送信し、設定により自動・手動を併用する  
-  - 自動募集: 設定値 `0` で無効、`>0` でその ms 間隔で定期送信  
-  - 手動募集: 任意タイミングで API を呼んで送信  
+- 募集（JOIN 要請）は 30 秒間隔の定期実行が既定。`0` を設定すると自動募集は無効化され、必要なときだけアプリが明示的に `sendRegistrationRequest()` を呼び出す運用になる  
+  - 定期募集の間隔は任意に `>0` ms で調整可能  
   - 全体募集（誰でも応募可）と、特定 MAC を明示した「対象限定募集」を使い分けられる。後者は既存ペアだけを再接続したいときに使う
 - 受信側の応募判定  
   - groupId 不一致は無視  
@@ -332,12 +310,11 @@ sendRegistrationRequest()
 ControlJoinReq をブロードキャスト（groupId + authTag）
 ```
 
-#### 受け入れ側（Master / Flat）
+#### 受け入れ側（全ノード）
 1. JOIN要求を受信  
 2. groupId / authTag を検証  
-3. `canAcceptRegistrations && acceptRegistration == true` の場合のみ対応  
-4. 認証OK → addPeer()  
-5. ControlJoinAck を返す（ユニキャスト）
+3. 認証OK → addPeer()  
+4. ControlJoinAck を返す（ユニキャスト）
 
 ### 8.4 重複検出・リトライ扱い
 - Unicast: peer ごとに最後に受理した `msgId` を記録し、同一 `msgId`（リトライ）は破棄（必要なら onReceive に「リトライだった」メタ情報を渡す）  
