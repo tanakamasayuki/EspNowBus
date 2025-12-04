@@ -152,7 +152,6 @@ struct Config {
 
     bool useEncryption        = true;    // ESP-NOW 暗号化
     bool enablePeerAuth       = true;    // チャレンジレスポンス ON
-    bool enableBroadcastAuth  = true;    // Broadcast 認証
 
     // 無線設定
     int8_t channel = -1;                 // -1 で groupName 由来のハッシュ値から自動決定 (1〜13 を使用)、範囲外はクリップ
