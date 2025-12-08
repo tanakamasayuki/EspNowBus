@@ -13,31 +13,16 @@ void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetr
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (const char *)data, (unsigned)len, wasRetry);
 }
 
-void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
-{
-  // en: Master rarely sends; still log
-  // ja: マスタはほぼ送信しないが、ログだけ出す
-  Serial.printf("Send status=%d\n", (int)status);
-}
-
-void onAppAck(const uint8_t *mac, uint16_t msgId)
-{
-  // en: Logical ACK
-  // ja: 論理ACK（基本は onSendResult で完了判定）
-  Serial.printf("AppAck msgId=%u\n", msgId);
-}
-
 void setup()
 {
   Serial.begin(115200);
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-master";
+  cfg.groupName = "espnow-demo_04_MasterSlave"; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  cfg.autoJoinIntervalMs = 10000;               // en: Auto-JOIN interval(30s->10s) / ja: 自動JOIN間隔(30秒->10秒)
 
   bus.onReceive(onReceive);
-  bus.onSendResult(onSendResult);
-  bus.onAppAck(onAppAck);
 
   if (!bus.begin(cfg))
   {
