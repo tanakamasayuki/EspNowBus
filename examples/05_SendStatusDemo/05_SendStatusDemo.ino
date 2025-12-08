@@ -17,6 +17,8 @@ void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
 {
   // en: AppAckReceived means the peer returned a logical ACK (delivery confirmed).
   // ja: AppAckReceived は相手から論理ACKが返ってきた（到達確認）ことを示す。
+  Serial.printf("TX to %02X:%02X:%02X:%02X:%02X:%02X status=",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   switch (status)
   {
   case EspNowBus::Queued:
@@ -65,8 +67,7 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-status";
-  cfg.enableAppAck = true; // en: Enable logical ACK / ja: 論理ACKを使う
+  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
 
   bus.onReceive(onReceive);
   bus.onSendResult(onSendResult);
@@ -76,22 +77,11 @@ void setup()
   {
     Serial.println("begin failed");
   }
-
-  bus.sendJoinRequest();
 }
 
 void loop()
 {
-  static uint32_t lastJoin = 0;
   static uint32_t lastSend = 0;
-
-  // en: Periodically ask others to join us (helps when peers reboot)
-  // ja: 定期的に JOIN を依頼（相手が再起動しても再登録できるように）
-  if (millis() - lastJoin > 5000)
-  {
-    lastJoin = millis();
-    bus.sendJoinRequest();
-  }
 
   if (millis() - lastSend > 3000)
   {
