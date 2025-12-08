@@ -88,11 +88,17 @@ void loop() {
 - ピア参照: `peerCount()` と `getPeer(index, macOut)` で登録済みピアを列挙できる。
 
 ## サンプルとユースケース
-- `examples/BroadcastAndAck`: 定期ブロードキャスト＋論理ACK。全体への通知で到達確認を取りたい場合に。
-- `examples/JoinAndUnicast`: JOIN 後、ランダムなピアへユニキャスト。再起動後のピア再発見（定期JOIN）と到達確認の例。
-- `examples/SendToAllPeers`: `sendToAllPeers` で全ピアにユニキャスト同報。ブロードキャストより重いが、暗号化＋HMAC＋AppAck による到達確認を重視する用途に。
-- `examples/SendStatusDemo`: `SendStatus` を switch で確認するデモ。app-ACK 有効時は相手が落ちていない限り自動再送で隠れることもある。
-- `examples/NoAppAck`: AppAck 無効の例。`onAppAck` を設定しても呼ばれず、`SentOk` は物理送信成功のみ（軽量運用向け）。
+- `examples/01_Broadcast`: シンプルな定期ブロードキャスト（自動 JOIN 無効）。
+- `examples/02_JoinAndUnicast`: JOIN 後、ランダムなピアへユニキャスト。再起動後のピア再発見（定期 JOIN）と到達確認の例。
+- `examples/03_SendToAllPeers`: `sendToAllPeers` で全ピアにユニキャスト同報。暗号化/HMAC/AppAck で到達確認を重視する用途に。
+- `examples/04_MasterSlave`: マスター（JOIN 受け入れ）とスレーブ（全ピアへセンサ風送信）のペアスケッチ。
+- `examples/05_SendStatusDemo`: `SendStatus` を switch で確認するデモ。リトライ/タイムアウトと AppAck の挙動を見る用途に。
+- `examples/06_NoAppAck`: AppAck 無効の例。`SentOk` は物理送信成功のみ（軽量運用向け）。
+- `examples/07_AutoPurge`: JOIN イベントコールバックとハートビートによる離脱/削除の挙動を確認。
+- `examples/08_ChannelOverride`: Wi-Fi チャンネルを明示指定（0 指定時に 1〜13 にクリップされることを確認）。
+- `examples/09_PhyRateOverride`: PHY レートを `WIFI_PHY_RATE_1M_L` に変更し遠距離向けにする例（既定は 24M）。
+- `examples/10_LowFootprintBroadcast`: 暗号化/AppAck/peerAuth 無効、ペイロード 250B、キュー縮小の最軽量ブロードキャスト。
+- `examples/11_FullConfigTemplate`: Config 全項目を既定値で明示した雛形。
 
 ### リトライ / JOIN / ハートビート / 重複扱い
 - 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。

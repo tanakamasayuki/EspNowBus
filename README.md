@@ -89,11 +89,17 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Peer introspection: `peerCount()` and `getPeer(index, macOut)` allow enumerating known peers.
 
 ## Examples (use-cases)
-- `examples/BroadcastAndAck`: Periodic broadcast with app-level ACK. Use when you need group-wide updates but still want logical delivery checks (each listener returns AppAck).
-- `examples/JoinAndUnicast`: Nodes JOIN and then unicast to a random peer. Shows how to recover peers after reboot (periodic JOIN) and confirms delivery with AppAck.
-- `examples/SendToAllPeers`: Group-wide message via `sendToAllPeers` (per-peer unicast). Heavier than broadcast, but benefits from encryption/keyAuth and AppAck delivery assurance.
-- `examples/SendStatusDemo`: Shows how to inspect `SendStatus` via switch; with app-ACK enabled, auto-retries will hide transient issues unless the peer stays down.
-- `examples/NoAppAck`: App-level ACK disabled; `onAppAck` is set but not called. Use this to see physical `SentOk` only (lightweight, no logical delivery check).
+- `examples/01_Broadcast`: Simple periodic broadcast (auto-JOIN disabled).
+- `examples/02_JoinAndUnicast`: JOIN peers then unicast to a random peer with AppAck; periodic JOIN helps rediscover peers.
+- `examples/03_SendToAllPeers`: Per-peer unicast fan-out (`sendToAllPeers`) for delivery assurance with encryption/auth/AppAck.
+- `examples/04_MasterSlave`: Master (accepts JOIN) and Slave (sends sensor-ish data to all peers) pair sketch.
+- `examples/05_SendStatusDemo`: Inspect `SendStatus` via switch; useful to see retries/timeouts vs. app-level ACK outcomes.
+- `examples/06_NoAppAck`: App-level ACK disabled; shows physical `SentOk` only (lightweight, no logical delivery check).
+- `examples/07_AutoPurge`: JOIN event callbacks and heartbeat-based removal/leave cases.
+- `examples/08_ChannelOverride`: Explicit Wi-Fi channel selection; demonstrates clamping when 0 is specified.
+- `examples/09_PhyRateOverride`: Override ESP-NOW PHY rate to `WIFI_PHY_RATE_1M_L` for longer range (default is 24M).
+- `examples/10_LowFootprintBroadcast`: Minimal footprint broadcast (encryption/AppAck/peerAuth OFF, payload capped at 250B, small queue).
+- `examples/11_FullConfigTemplate`: Template with every `Config` field spelled out at its default value.
 
 ### Retries, JOIN, heartbeat, duplicates
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.

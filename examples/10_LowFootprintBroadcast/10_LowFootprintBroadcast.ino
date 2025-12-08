@@ -4,7 +4,6 @@
 // ja: 最軽量設定のブロードキャスト例。AppAck 無効、暗号化無効、peer認証無効、送信長 250 バイトに制限。
 
 EspNowBus bus;
-uint8_t payload[EspNowBus::kMaxPayloadLegacy]; // en: 250-byte payload buffer / ja: 250 バイトの送信バッファ
 
 void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetry, bool isBroadcast)
 {
@@ -19,10 +18,6 @@ void setup()
 {
   Serial.begin(115200);
   delay(500);
-
-  // en: Prepare 250-byte message filled with 'A'
-  // ja: 250 バイトの 'A' 埋めメッセージを準備
-  memset(payload, 'A', sizeof(payload));
 
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-demo_" __FILE__;            // en: group identifier / ja: グループ識別子
@@ -51,6 +46,7 @@ void loop()
   if (millis() - last > 2000)
   {
     last = millis();
-    bus.broadcast(payload, sizeof(payload));
+    const char msg[] = "hello broadcast";
+    bus.broadcast(msg, sizeof(msg));
   }
 }
