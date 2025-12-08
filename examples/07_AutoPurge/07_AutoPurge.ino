@@ -17,8 +17,18 @@ void onJoinEventCb(const uint8_t mac[6], bool accepted, bool isAck)
 {
   // en: Report join events (accepted/denied, request vs ack)
   // ja: JOIN イベントを表示（受理/拒否、ReqかAckか）
-  Serial.printf("JoinEvent mac=%02X:%02X:%02X:%02X:%02X:%02X accepted=%d isAck=%d\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], accepted, isAck);
+  const char *state = "unknown";
+  if (accepted && !isAck)
+    state = "JoinReq accepted";
+  else if (accepted && isAck)
+    state = "JoinAck success";
+  else if (!accepted && isAck)
+    state = "JoinAck mismatch/fail";
+  else
+    state = "heartbeat timeout (leave)";
+
+  Serial.printf("JoinEvent mac=%02X:%02X:%02X:%02X:%02X:%02X accepted=%d isAck=%d state=%s\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], accepted, isAck, state);
 }
 
 void setup()
