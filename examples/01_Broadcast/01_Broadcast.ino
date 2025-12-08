@@ -19,8 +19,8 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-demo_01_Broadcast"; // en: Group name for communication / ja: 同じグループ名同士で通信可能
-  cfg.autoJoinIntervalMs = 0;                 // en: Disable auto-JOIN / ja: 自動JOIN無効化
+  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  cfg.autoJoinIntervalMs = 0;              // en: Disable auto-JOIN / ja: 自動JOIN無効化
 
   bus.onReceive(onReceive);
 

@@ -15,56 +15,25 @@ void onReceive(const uint8_t *mac, const uint8_t *data, size_t len, bool wasRetr
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (const char *)data, (unsigned)len, wasRetry);
 }
 
-void onSendResult(const uint8_t *mac, EspNowBus::SendStatus status)
-{
-  // en: Report send status
-  // ja: 送信ステータスを表示
-  Serial.printf("Send to %02X:%02X:%02X:%02X:%02X:%02X status=%d\n",
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], (int)status);
-}
-
-void onAppAck(const uint8_t *mac, uint16_t msgId)
-{
-  // en: Logical ACK
-  // ja: 論理ACK（基本は onSendResult で完了判定）
-  Serial.printf("AppAck msgId=%u\n", msgId);
-}
-
 void setup()
 {
   Serial.begin(115200);
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-group";
+  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
 
   bus.onReceive(onReceive);
-  bus.onSendResult(onSendResult);
-  bus.onAppAck(onAppAck);
 
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");
   }
-
-  // en: request registration so peers add us
-  // ja: 登録を依頼して他ピアに追加してもらう
-  bus.sendJoinRequest();
 }
 
 void loop()
 {
-  static uint32_t lastJoin = 0;
   static uint32_t lastSend = 0;
-
-  // en: Periodically ask others to register us (helps when peers reboot)
-  // ja: 定期的にピア登録を依頼（相手が再起動しても再登録できるように）
-  if (millis() - lastJoin > 5000)
-  {
-    lastJoin = millis();
-    bus.sendJoinRequest();
-  }
-
   if (millis() - lastSend > 4000)
   {
     lastSend = millis();

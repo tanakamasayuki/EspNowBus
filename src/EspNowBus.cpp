@@ -94,7 +94,11 @@ bool EspNowBus::begin(const Config &cfg)
 
     WiFi.mode(WIFI_STA);
     esp_wifi_get_mac(WIFI_IF_STA, selfMac_);
-    lastAutoJoinMs_ = millis();
+    // Prime auto-join so the first loop run triggers immediately when enabled
+    if (config_.autoJoinIntervalMs > 0)
+        lastAutoJoinMs_ = millis() - config_.autoJoinIntervalMs;
+    else
+        lastAutoJoinMs_ = millis();
     esp_err_t chErr = esp_wifi_set_channel(static_cast<uint8_t>(config_.channel), WIFI_SECOND_CHAN_NONE);
     if (chErr != ESP_OK)
     {

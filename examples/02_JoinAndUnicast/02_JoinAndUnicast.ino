@@ -21,7 +21,7 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-join_02_JoinAndUnicast"; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
 
   bus.onReceive(onReceive);
 
@@ -29,10 +29,6 @@ void setup()
   {
     Serial.println("begin failed");
   }
-
-  // en: Periodic auto-JOIN setting, but do the first JOIN manually.
-  // ja: 定期的に自動JOINする設定だが、最初のJOINは手動で行う。
-  bus.sendJoinRequest();
 }
 
 void loop()
