@@ -376,6 +376,20 @@ bool EspNowBus::sendJoinRequest(const uint8_t targetMac[6], uint32_t timeoutMs)
     return enqueueCommon(Dest::Broadcast, PacketType::ControlJoinReq, kBroadcastMac, &payload, sizeof(payload), timeoutMs);
 }
 
+bool EspNowBus::sendLeaveRequest(uint32_t timeoutMs)
+{
+    LeavePayload payload{};
+    memcpy(payload.mac, selfMac_, 6);
+    ESP_LOGI(TAG, "sendLeaveRequest mac=%02X:%02X:%02X:%02X:%02X:%02X",
+             payload.mac[0], payload.mac[1], payload.mac[2], payload.mac[3], payload.mac[4], payload.mac[5]);
+    bool ok = enqueueCommon(Dest::Broadcast, PacketType::ControlLeave, kBroadcastMac, &payload, sizeof(payload), timeoutMs);
+    if (ok && onJoinEvent_)
+    {
+        onJoinEvent_(selfMac_, false, false);
+    }
+    return ok;
+}
+
 uint16_t EspNowBus::sendQueueFree() const
 {
     if (!sendQueue_)
@@ -498,7 +512,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
     }
     if (!sendQueue_)
         return false;
-    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck || pktType == PacketType::ControlHeartbeat);
+    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck || pktType == PacketType::ControlHeartbeat || pktType == PacketType::ControlLeave);
     const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;
     if (totalLen > maxLen)
     {
@@ -552,7 +566,12 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
 
     if (needsAuth)
     {
-        const uint8_t *key = (pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) ? derived_.keyAuth : derived_.keyBcast;
+        const bool useAuthKey = (pktType == PacketType::ControlJoinReq ||
+                                 pktType == PacketType::ControlJoinAck ||
+                                 pktType == PacketType::ControlAppAck ||
+                                 pktType == PacketType::ControlHeartbeat ||
+                                 pktType == PacketType::ControlLeave);
+        const uint8_t *key = useAuthKey ? derived_.keyAuth : derived_.keyBcast;
         computeAuthTag(buf + cursor, buf, cursor, key);
         cursor += kAuthTagLen;
     }
@@ -647,7 +666,12 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
              mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
              mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
 
-    const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck || type == PacketType::ControlAppAck);
+    const bool needsAuth = (type == PacketType::DataBroadcast ||
+                            type == PacketType::ControlJoinReq ||
+                            type == PacketType::ControlJoinAck ||
+                            type == PacketType::ControlAppAck ||
+                            type == PacketType::ControlHeartbeat ||
+                            type == PacketType::ControlLeave);
     if (needsAuth)
     {
         if (!instance_->verifyAuthTag(data, len, type))
@@ -668,7 +692,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
     const uint8_t *payload = p + cursor;
     int payloadLen = len - static_cast<int>(cursor + (needsAuth ? kAuthTagLen : 0));
 
-    int idx = instance_->ensurePeer(mac);
+    int idx = (type == PacketType::ControlLeave) ? instance_->findPeerIndex(mac) : instance_->ensurePeer(mac);
     if (type == PacketType::DataUnicast)
     {
         if (idx >= 0)
@@ -849,6 +873,36 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
         }
         return;
     }
+    else if (type == PacketType::ControlLeave)
+    {
+        if (!mac)
+            return;
+        if (payloadLen < static_cast<int>(sizeof(LeavePayload)))
+        {
+            ESP_LOGW(TAG, "leave req too short");
+            return;
+        }
+        const LeavePayload *lv = reinterpret_cast<const LeavePayload *>(payload);
+        if (memcmp(lv->mac, mac, 6) != 0)
+        {
+            ESP_LOGW(TAG, "leave mac mismatch sender=%02X:%02X:%02X:%02X:%02X:%02X payload=%02X:%02X:%02X:%02X:%02X:%02X",
+                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+                     lv->mac[0], lv->mac[1], lv->mac[2], lv->mac[3], lv->mac[4], lv->mac[5]);
+            return;
+        }
+        if (idx < 0)
+        {
+            ESP_LOGW(TAG, "leave from unknown peer mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            return;
+        }
+        instance_->peers_[idx].lastSeenMs = millis();
+        instance_->peers_[idx].heartbeatStage = 0;
+        if (instance_->onJoinEvent_)
+            instance_->onJoinEvent_(mac, false, false);
+        instance_->removePeer(mac);
+        return;
+    }
     else
     {
         ESP_LOGW(TAG, "unknown packet type=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
@@ -886,12 +940,14 @@ bool EspNowBus::startSend(const TxItem &item)
         item.pktType == PacketType::ControlJoinReq ||
         item.pktType == PacketType::ControlJoinAck ||
         item.pktType == PacketType::ControlAppAck ||
-        item.pktType == PacketType::ControlHeartbeat)
+        item.pktType == PacketType::ControlHeartbeat ||
+        item.pktType == PacketType::ControlLeave)
     {
         const uint8_t *key = (item.pktType == PacketType::ControlJoinReq ||
                               item.pktType == PacketType::ControlJoinAck ||
                               item.pktType == PacketType::ControlAppAck ||
-                              item.pktType == PacketType::ControlHeartbeat)
+                              item.pktType == PacketType::ControlHeartbeat ||
+                              item.pktType == PacketType::ControlLeave)
                                  ? derived_.keyAuth
                                  : derived_.keyBcast;
         if (item.len >= kHeaderSize + 4 + kAuthTagLen)
@@ -1160,7 +1216,13 @@ bool EspNowBus::verifyAuthTag(const uint8_t *msg, size_t len, uint8_t pktType)
                    (static_cast<uint32_t>(groupPtr[3]) << 24);
     if (gid != derived_.groupId)
         return false;
-    const uint8_t *key = (pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck || pktType == PacketType::ControlHeartbeat) ? derived_.keyAuth : derived_.keyBcast;
+    const uint8_t *key = (pktType == PacketType::ControlJoinReq ||
+                          pktType == PacketType::ControlJoinAck ||
+                          pktType == PacketType::ControlAppAck ||
+                          pktType == PacketType::ControlHeartbeat ||
+                          pktType == PacketType::ControlLeave)
+                             ? derived_.keyAuth
+                             : derived_.keyBcast;
     size_t tagOffset = len - kAuthTagLen;
     uint8_t calc[kAuthTagLen];
     computeAuthTag(calc, msg, tagOffset, key);

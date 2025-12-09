@@ -5,7 +5,7 @@
 Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. EspNowBus focuses on keeping small networks (≈6 nodes) secure by default while exposing a simple Arduino-style API.
 
 ## Highlights
-- Simple API: `begin()`, `sendTo()`, `broadcast()`, `onReceive()`, `onSendResult()`.
+- Simple API: `begin()`, `sendTo()`, `broadcast()`, `onReceive()`, `onSendResult()`, `sendLeaveRequest()`.
 - Secure-by-default: ESP-NOW encryption, join-time challenge/response, and authenticated broadcast are enabled unless you turn them off.
 - Auto peer registration: nodes can broadcast join requests; eligible nodes accept and register peers automatically.
 - Deterministic sending: outbound messages are queued and sent one at a time by a FreeRTOS task.
@@ -13,7 +13,7 @@ Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. 
 
 ## Concepts
 - **Group name → keys/IDs**: A `groupName` derives `groupSecret`, `groupId`, `keyAuth` (join auth), and `keyBcast` (broadcast auth).
-- **Packet types**: `DataUnicast`, `DataBroadcast`, `ControlJoinReq`, `ControlJoinAck`, `ControlHeartbeat`, `ControlAppAck`.
+- **Packet types**: `DataUnicast`, `DataBroadcast`, `ControlJoinReq`, `ControlJoinAck`, `ControlHeartbeat`, `ControlAppAck`, `ControlLeave`.
 - **Security**: Broadcast packets carry `groupId`, `seq`, and `authTag`; join uses challenge/response; encryption is recommended. Join/Ack and Heartbeat are sent without ESP-NOW encryption (peer not yet set up) but carry HMAC.
 
 ## Quick start
@@ -107,6 +107,7 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Retries set a retry flag; receivers drop duplicate `msgId/seq` per peer and may optionally surface "wasRetry" metadata in callbacks.
 - Send-complete CB should not touch shared state directly; notify the send task via FreeRTOS task notification (`xTaskNotifyFromISR`) and let the send task clear the flag and dispatch `onSendResult`.
 - JOIN flow: `sendJoinRequest(targetMac)` broadcasts ControlJoinReq (HMAC+targetMac). Acceptors validate `groupId/targetMac/HMAC` and broadcast ControlJoinAck (echo nonceA, add nonceB+targetMac, HMAC). Both sides add peer after Ack and switch to encrypted unicast.
+- Leave flow: `sendLeaveRequest()` broadcasts ControlLeave with `keyAuth` HMAC and the sender MAC. Receivers verify the sender/payload MAC match, emit `onJoinEvent(mac,false,false)`, and drop the peer immediately (no heartbeat delay).
 - Broadcast/control packets carry `groupId` and a 16-byte HMAC tag (keyBcast or keyAuth); receivers verify and drop mismatches. Broadcast replay uses a small table (max 16 senders, 32-bit window; evict oldest sender on overflow).
 - Even with ESP-NOW encryption disabled, Broadcast/Control/AppAck/Heartbeat packets carry HMAC (keyBcast/keyAuth) for authenticity; keep `enableAppAck` on for delivery assurance.
 - Heartbeat: unicast Ping/Pong without AppAck. Pong reception marks liveness; missing heartbeat drives targeted JOIN at 2× interval and disconnect at 3× interval.
@@ -136,7 +137,7 @@ SendStatus notes:
 - `onReceive(const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast)`: accepted unicast or authenticated broadcast; `wasRetry` is true if sender flagged retry, `isBroadcast` tells the path.
 - `onSendResult(const uint8_t* mac, SendStatus status)`: per-queued packet result. With app-ACK enabled, completion is `AppAckReceived`/`AppAckTimeout`.
 - `onAppAck(const uint8_t* mac, uint16_t msgId)`: fired for every AppAck received (even if not in-flight); typically for debugging/telemetry.
-- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN events. `accepted=true,isAck=false`=JoinReq accepted; `accepted=true,isAck=true`=JoinAck success; `accepted=false,isAck=true`=JoinAck mismatch/fail; `accepted=false,isAck=false`=heartbeat timeout (peer removed).
+- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN events. `accepted=true,isAck=false`=JoinReq accepted; `accepted=true,isAck=true`=JoinAck success; `accepted=false,isAck=true`=JoinAck mismatch/fail; `accepted=false,isAck=false`=heartbeat timeout or Leave (peer removed).
 
 ## Documentation
 - Detailed spec (Japanese): `SPEC.ja.md`

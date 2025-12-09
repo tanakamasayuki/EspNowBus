@@ -55,6 +55,16 @@ void loop()
 {
   static uint32_t lastSend = 0;
 
+  if (Serial.available())
+  {
+    int c = Serial.read();
+    if (c == 'l' || c == 'L')
+    {
+      bus.sendLeaveRequest();
+      Serial.println("Leave request sent");
+    }
+  }
+
   if (millis() - lastSend > 3000)
   {
     lastSend = millis();

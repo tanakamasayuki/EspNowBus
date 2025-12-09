@@ -62,6 +62,7 @@ public:
         ControlJoinAck = 4,
         ControlHeartbeat = 5,
         ControlAppAck = 6,
+        ControlLeave = 7,
     };
 
 #pragma pack(push, 1)
@@ -88,11 +89,17 @@ public:
     {
         uint8_t kind; // 0=Ping, 1=Pong
     };
+
+    struct LeavePayload
+    {
+        uint8_t mac[6];
+    };
 #pragma pack(pop)
     static_assert(sizeof(JoinReqPayload) == kNonceLen * 2 + 6, "JoinReqPayload size");
     static_assert(sizeof(JoinAckPayload) == kNonceLen * 2 + 6, "JoinAckPayload size");
     static_assert(sizeof(AppAckPayload) == 2, "AppAckPayload size");
     static_assert(sizeof(HeartbeatPayload) == 1, "HeartbeatPayload size");
+    static_assert(sizeof(LeavePayload) == 6, "LeavePayload size");
 
     enum SendStatus : uint8_t
     {
@@ -136,6 +143,7 @@ public:
     bool getPeer(size_t index, uint8_t macOut[6]) const;
 
     bool sendJoinRequest(const uint8_t targetMac[6] = kBroadcastMac, uint32_t timeoutMs = kUseDefault);
+    bool sendLeaveRequest(uint32_t timeoutMs = kUseDefault);
 
     // Queue introspection
     uint16_t sendQueueFree() const;
