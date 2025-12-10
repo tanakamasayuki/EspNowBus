@@ -25,7 +25,7 @@ void onJoinEventCb(const uint8_t mac[6], bool accepted, bool isAck)
   else if (!accepted && isAck)
     state = "JoinAck mismatch/fail";
   else
-    state = "heartbeat timeout (leave)";
+    state = "leave or heartbeat timeout";
 
   Serial.printf("JoinEvent mac=%02X:%02X:%02X:%02X:%02X:%02X accepted=%d isAck=%d state=%s\n",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], accepted, isAck, state);

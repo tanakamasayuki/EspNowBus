@@ -387,6 +387,16 @@ bool EspNowBus::sendLeaveRequest(uint32_t timeoutMs)
     {
         onJoinEvent_(selfMac_, false, false);
     }
+    // Local cleanup: drop all known peers to free slots immediately.
+    if (ok)
+    {
+        for (size_t i = 0; i < kMaxPeers; ++i)
+        {
+            if (!peers_[i].inUse)
+                continue;
+            removePeer(peers_[i].mac);
+        }
+    }
     return ok;
 }
 
