@@ -75,6 +75,10 @@ void loop() {
 - ISR 非対応: `sendTo`/`broadcast` は ISR から呼べない（ブロッキング API を使用するため）。
 - `replayWindowBcast` (既定 32): Broadcast のリプレイ窓（0 で無効。送信元最大16件・32bit窓、超過時は最古の送信元を破棄）
 
+### 明示的離脱（end）
+- `end(stopWiFi=false, sendLeave=true)`: 送信キューを破棄し、`ControlLeave` をブロードキャストで 1 回送信（リトライなし、短時間だけ待って終了）。`stopWiFi=true` で Wi-Fi/ESP-NOW も停止、`sendLeave=false` で離脱通知を送らず静かに終了。
+- `ControlLeave` 受信側は peer を即削除し、`onJoinEvent(mac, false, false)` を発火する（ハートビート 3x 超過のタイムアウト離脱と同じ通知）。
+
 ### 送信ごとのタイムアウト上書き
 `sendTo` / `sendToAllPeers` / `broadcast` に任意の `timeoutMs` を指定可能。  
 `0`=非ブロック、`portMAX_DELAY`=無期限、`kUseDefault`（`portMAX_DELAY - 1` を特別値に利用）= `Config.sendTimeoutMs` を使用。
@@ -88,17 +92,18 @@ void loop() {
 - ピア参照: `peerCount()` と `getPeer(index, macOut)` で登録済みピアを列挙できる。
 
 ## サンプルとユースケース
-- `examples/01_Broadcast`: シンプルな定期ブロードキャスト（自動 JOIN 無効）。
-- `examples/02_JoinAndUnicast`: JOIN 後、ランダムなピアへユニキャスト。再起動後のピア再発見（定期 JOIN）と到達確認の例。
-- `examples/03_SendToAllPeers`: `sendToAllPeers` で全ピアにユニキャスト同報。暗号化/HMAC/AppAck で到達確認を重視する用途に。
-- `examples/04_MasterSlave`: マスター（JOIN 受け入れ）とスレーブ（全ピアへセンサ風送信）のペアスケッチ。
-- `examples/05_SendStatusDemo`: `SendStatus` を switch で確認するデモ。リトライ/タイムアウトと AppAck の挙動を見る用途に。
-- `examples/06_NoAppAck`: AppAck 無効の例。`SentOk` は物理送信成功のみ（軽量運用向け）。
-- `examples/07_AutoPurge`: JOIN イベントコールバックとハートビートによる離脱/削除の挙動を確認。
-- `examples/08_ChannelOverride`: Wi-Fi チャンネルを明示指定（0 指定時に 1〜13 にクリップされることを確認）。
-- `examples/09_PhyRateOverride`: PHY レートを `WIFI_PHY_RATE_1M_L` に変更し遠距離向けにする例（既定は 24M）。
-- `examples/10_LowFootprintBroadcast`: 暗号化/AppAck/peerAuth 無効、ペイロード 250B、キュー縮小の最軽量ブロードキャスト。
-- `examples/11_FullConfigTemplate`: Config 全項目を既定値で明示した雛形。
+- [`examples/01_Broadcast`](examples/01_Broadcast): シンプルな定期ブロードキャスト（自動 JOIN 無効）。
+- [`examples/02_JoinAndUnicast`](examples/02_JoinAndUnicast): JOIN 後、ランダムなピアへユニキャスト。再起動後のピア再発見（定期 JOIN）と到達確認の例。
+- [`examples/03_SendToAllPeers`](examples/03_SendToAllPeers): `sendToAllPeers` で全ピアにユニキャスト同報。暗号化/HMAC/AppAck で到達確認を重視する用途に。
+- [`examples/04_MasterSlave`](examples/04_MasterSlave): マスター（JOIN 受け入れ）とスレーブ（全ピアへセンサ風送信）のペアスケッチ。
+- [`examples/05_SendStatusDemo`](examples/05_SendStatusDemo): `SendStatus` を switch で確認するデモ。リトライ/タイムアウトと AppAck の挙動を見る用途に。
+- [`examples/06_NoAppAck`](examples/06_NoAppAck): AppAck 無効の例。`SentOk` は物理送信成功のみ（軽量運用向け）。
+- [`examples/07_AutoPurge`](examples/07_AutoPurge): JOIN イベントコールバックとハートビートによる離脱/削除の挙動を確認。
+- [`examples/08_ChannelOverride`](examples/08_ChannelOverride): Wi-Fi チャンネルを明示指定（0 指定時に 1〜13 にクリップされることを確認）。
+- [`examples/09_PhyRateOverride`](examples/09_PhyRateOverride): PHY レートを `WIFI_PHY_RATE_1M_L` に変更し遠距離向けにする例（既定は 24M）。
+- [`examples/10_LowFootprintBroadcast`](examples/10_LowFootprintBroadcast): 暗号化/AppAck/peerAuth 無効、ペイロード 250B、キュー縮小の最軽量ブロードキャスト。
+- [`examples/11_FullConfigTemplate`](examples/11_FullConfigTemplate): Config 全項目を既定値で明示した雛形。
+- [`examples/12_ExplicitLeave`](examples/12_ExplicitLeave): シリアルコマンドで `end(stopWiFi, sendLeave)`, Wi-Fi 停止/再開, `begin` 再参加, `ESP.restart()` を試す明示的離脱デモ。
 
 ### リトライ / JOIN / ハートビート / 重複扱い
 - 送信タスクは単一の送信スロットとフラグを持ち、ESP-NOW 送信完了 CB でフラグを下ろして `onSendResult` を通知。
@@ -133,11 +138,11 @@ SendStatus の扱い:
 - `onReceive(const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast)`: 認証済みユニキャストと正当なブロードキャストを受信時に呼ばれる。`wasRetry` が true の場合は送信側がリトライフラグを立てている。`isBroadcast` で経路の違いを判別できる。
 - `onSendResult(const uint8_t* mac, SendStatus status)`: キュー投入ごとの送信結果を通知。AppAck 有効時の完了判定は `AppAckReceived` / `AppAckTimeout`（基本はこれを見る）。
 - `onAppAck(const uint8_t* mac, uint16_t msgId)`: 受信した全ての AppAck で呼ばれる（in-flight でなくても）。デバッグやテレメトリ向けで任意。
-- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN 受理/拒否/成功/タイムアウト離脱時。`accepted=true,isAck=false`=JoinReq 受理、`accepted=true,isAck=true`=JoinAck 受信成功、`accepted=false,isAck=true`=JoinAck 失敗、`accepted=false,isAck=false`=ハートビートタイムアウトで離脱。
+- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN 受理/拒否/成功/離脱時。`accepted=true,isAck=false`=JoinReq 受理、`accepted=true,isAck=true`=JoinAck 受信成功、`accepted=false,isAck=true`=JoinAck 失敗、`accepted=false,isAck=false`=ハートビートタイムアウトまたは ControlLeave 受信による離脱。
 
 ## ドキュメント
-- 仕様詳細: `SPEC.ja.md`
-- 英語 README: `README.md`
+- 仕様詳細: [`SPEC.ja.md`](SPEC.ja.md)
+- 英語 README: [`README.md`](README.md)
 - ユースケース例:
   - センサーノード → ゲートウェイの小規模ネットワーク
   - コントローラ → 複数ロボット/ガジェットへの操作
@@ -145,4 +150,4 @@ SendStatus の扱い:
   - グループ鍵で隔離されたアドホックなデバイスクラスタ
 
 ## ライセンス
-MIT (`LICENSE` を参照)。
+MIT（[`LICENSE`](LICENSE) を参照）。

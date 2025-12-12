@@ -76,6 +76,10 @@ void loop() {
 - Not ISR-safe: `sendTo`/`broadcast` cannot be called from ISR (queue/blocking APIs are used).
 - `replayWindowBcast` (default `32`): broadcast replay window (set 0 to disable; max 16 senders, 32-bit window, evict oldest sender on overflow).
 
+### Explicit leave (end)
+- `end(stopWiFi=false, sendLeave=true)`: discard the TX queue, send `ControlLeave` broadcast once (no retries, short wait), then shut down. `stopWiFi=true` also stops Wi-Fi/ESP-NOW; `sendLeave=false` exits quietly without sending leave.
+- On receiving `ControlLeave`, the peer is removed immediately and `onJoinEvent(mac, false, false)` fires (same notification as heartbeat 3× timeout).
+
 ### Per-call timeout override
 `sendTo` / `sendToAllPeers` / `broadcast` accept an optional `timeoutMs` parameter.  
 Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`portMAX_DELAY - 1`) = use `Config.sendTimeoutMs`.
@@ -89,17 +93,18 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - Peer introspection: `peerCount()` and `getPeer(index, macOut)` allow enumerating known peers.
 
 ## Examples (use-cases)
-- `examples/01_Broadcast`: Simple periodic broadcast (auto-JOIN disabled).
-- `examples/02_JoinAndUnicast`: JOIN peers then unicast to a random peer with AppAck; periodic JOIN helps rediscover peers.
-- `examples/03_SendToAllPeers`: Per-peer unicast fan-out (`sendToAllPeers`) for delivery assurance with encryption/auth/AppAck.
-- `examples/04_MasterSlave`: Master (accepts JOIN) and Slave (sends sensor-ish data to all peers) pair sketch.
-- `examples/05_SendStatusDemo`: Inspect `SendStatus` via switch; useful to see retries/timeouts vs. app-level ACK outcomes.
-- `examples/06_NoAppAck`: App-level ACK disabled; shows physical `SentOk` only (lightweight, no logical delivery check).
-- `examples/07_AutoPurge`: JOIN event callbacks and heartbeat-based removal/leave cases.
-- `examples/08_ChannelOverride`: Explicit Wi-Fi channel selection; demonstrates clamping when 0 is specified.
-- `examples/09_PhyRateOverride`: Override ESP-NOW PHY rate to `WIFI_PHY_RATE_1M_L` for longer range (default is 24M).
-- `examples/10_LowFootprintBroadcast`: Minimal footprint broadcast (encryption/AppAck/peerAuth OFF, payload capped at 250B, small queue).
-- `examples/11_FullConfigTemplate`: Template with every `Config` field spelled out at its default value.
+- [`examples/01_Broadcast`](examples/01_Broadcast): Simple periodic broadcast (auto-JOIN disabled).
+- [`examples/02_JoinAndUnicast`](examples/02_JoinAndUnicast): JOIN peers then unicast to a random peer with AppAck; periodic JOIN helps rediscover peers.
+- [`examples/03_SendToAllPeers`](examples/03_SendToAllPeers): Per-peer unicast fan-out (`sendToAllPeers`) for delivery assurance with encryption/auth/AppAck.
+- [`examples/04_MasterSlave`](examples/04_MasterSlave): Master (accepts JOIN) and Slave (sends sensor-ish data to all peers) pair sketch.
+- [`examples/05_SendStatusDemo`](examples/05_SendStatusDemo): Inspect `SendStatus` via switch; useful to see retries/timeouts vs. app-level ACK outcomes.
+- [`examples/06_NoAppAck`](examples/06_NoAppAck): App-level ACK disabled; shows physical `SentOk` only (lightweight, no logical delivery check).
+- [`examples/07_AutoPurge`](examples/07_AutoPurge): JOIN event callbacks and heartbeat-based removal/leave cases.
+- [`examples/08_ChannelOverride`](examples/08_ChannelOverride): Explicit Wi-Fi channel selection; demonstrates clamping when 0 is specified.
+- [`examples/09_PhyRateOverride`](examples/09_PhyRateOverride): Override ESP-NOW PHY rate to `WIFI_PHY_RATE_1M_L` for longer range (default is 24M).
+- [`examples/10_LowFootprintBroadcast`](examples/10_LowFootprintBroadcast): Minimal footprint broadcast (encryption/AppAck/peerAuth OFF, payload capped at 250B, small queue).
+- [`examples/11_FullConfigTemplate`](examples/11_FullConfigTemplate): Template with every `Config` field spelled out at its default value.
+- [`examples/12_ExplicitLeave`](examples/12_ExplicitLeave): Serial commands to `end(stopWiFi, sendLeave)`, restart Wi-Fi, re-`begin`, and `ESP.restart()` for explicit leave/rejoin behavior.
 
 ### Retries, JOIN, heartbeat, duplicates
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
@@ -136,11 +141,11 @@ SendStatus notes:
 - `onReceive(const uint8_t* mac, const uint8_t* data, size_t len, bool wasRetry, bool isBroadcast)`: accepted unicast or authenticated broadcast; `wasRetry` is true if sender flagged retry, `isBroadcast` tells the path.
 - `onSendResult(const uint8_t* mac, SendStatus status)`: per-queued packet result. With app-ACK enabled, completion is `AppAckReceived`/`AppAckTimeout`.
 - `onAppAck(const uint8_t* mac, uint16_t msgId)`: fired for every AppAck received (even if not in-flight); typically for debugging/telemetry.
-- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN events. `accepted=true,isAck=false`=JoinReq accepted; `accepted=true,isAck=true`=JoinAck success; `accepted=false,isAck=true`=JoinAck mismatch/fail; `accepted=false,isAck=false`=heartbeat timeout (peer removed).
+- `onJoinEvent(const uint8_t mac[6], bool accepted, bool isAck)`: JOIN/leave events. `accepted=true,isAck=false`=JoinReq accepted; `accepted=true,isAck=true`=JoinAck success; `accepted=false,isAck=true`=JoinAck mismatch/fail; `accepted=false,isAck=false`=heartbeat timeout **or** ControlLeave received (peer removed).
 
 ## Documentation
-- Detailed spec (Japanese): `SPEC.ja.md`
-- Japanese README: `README.ja.md`
+- Detailed spec: [`SPEC.md`](SPEC.md)
+- Japanese README: [`README.ja.md`](README.ja.md)
 - Use cases:
   - Small sensor → gateway networks
   - Controller → multiple robots or gadgets
@@ -148,4 +153,4 @@ SendStatus notes:
   - Ad-hoc device clusters that should stay isolated via group keys
 
 ## License
-MIT (see `LICENSE`).
+MIT (see [`LICENSE`](LICENSE)).

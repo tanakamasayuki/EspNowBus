@@ -255,10 +255,9 @@ static constexpr uint16_t kMaxPayloadDefault = 1470; // ESP-NOW v2.0 の MTU 目
 static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 ```
 
-`end(stopWiFi=false, sendLeave=true)` の挙動:
-- sendLeave=true: 送信キューを破棄し、`ControlLeave` をブロードキャスト 1 回だけ送信（リトライなし、キュー非依存）。送信完了/失敗/txTimeout いずれか、または固定の短い待ち時間を過ぎたら送信タスクと ESP-NOW をクリーンアップする
-- stopWiFi=true: 上記に加えて Wi-Fi/ESP-NOW を停止して省電力化し、通信機能を完全にオフにする
-- sendLeave=false: 離脱通知を送らず静かに終了（以後は募集応答や送受信を行わないが、他用途で Wi-Fi はそのまま利用可能）
+`end(stopWiFi=false, sendLeave=true)` の挙動（引数順に説明）:
+- stopWiFi: `true` なら Wi-Fi/ESP-NOW も停止して省電力化、`false` なら Wi-Fi は維持
+- sendLeave: `true` なら送信キューを破棄し、`ControlLeave` をブロードキャスト 1 回だけ送信（リトライなし、キュー非依存）。送信完了/失敗/txTimeout いずれか、または固定の短い待ち時間を過ぎたら送信タスクと ESP-NOW をクリーンアップ。`false` なら離脱通知を送らず静かに終了（募集応答や送受信を停止）
 
 推奨値の目安:
 - フル MTU を使いたい場合は `maxPayloadBytes = 1470`（デフォルト）。  
@@ -363,7 +362,7 @@ JOIN リプレイに関する考え方:
 - 片側再起動によるユニキャスト不達を吸収するため、上記の対象限定募集でリンク復旧を優先する設計とする
 
 ### 8.6 明示的離脱
-- `end(stopWiFi=false, sendLeave=true)` を呼ぶと、送信キューを破棄し、`ControlLeave` をブロードキャスト 1 回だけ送信（リトライなし、キューに積まない）。送信完了/失敗/txTimeout いずれか、または固定の短い待ち時間を過ぎたら終了処理を続行する
+- `end(stopWiFi=false, sendLeave=true)` を呼ぶと、送信キューを破棄し、`ControlLeave` をブロードキャスト 1 回だけ送信（リトライなし、キューに積まない）。送信完了/失敗/txTimeout いずれか、または固定の短い待ち時間を過ぎたら終了処理を続行する（sendLeave 引数で無効化可）
 - ControlLeave は keyBcast で署名された離脱通知。受信側は検証後ただちに送信元 MAC の peer を削除し、その相手へのハートビート再接続や対象限定募集を打ち切る（再JOIN は相手からの明示的募集を待つ）
 - `end(false, false)` は離脱通知を送らずに静かに終了し、自動募集/ハートビート/受信を止める
 - `end(true, sendLeave)` は上記に加えて Wi-Fi/ESP-NOW 自体も止め、省電力状態に入る（Wi-Fi を別用途に使う場合は false のままにする）

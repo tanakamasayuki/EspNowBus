@@ -53,6 +53,7 @@ public:
     static constexpr uint16_t kNonceWindow = 128;
     static constexpr uint32_t kReseedIntervalMs = 60 * 60 * 1000; // periodic key reseed (if desired)
     static constexpr uint8_t kBroadcastMac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    static constexpr uint32_t kLeaveWaitMs = 30; // short wait after sending leave
 
     enum PacketType : uint8_t
     {
@@ -62,6 +63,7 @@ public:
         ControlJoinAck = 4,
         ControlHeartbeat = 5,
         ControlAppAck = 6,
+        ControlLeave = 7,
     };
 
 #pragma pack(push, 1)
@@ -119,7 +121,7 @@ public:
                bool useEncryption = true,
                uint16_t maxQueueLength = 16);
 
-    void end();
+    void end(bool stopWiFi = false, bool sendLeave = true);
 
     bool sendTo(const uint8_t mac[6], const void *data, size_t len, uint32_t timeoutMs = kUseDefault);
     bool sendToAllPeers(const void *data, size_t len, uint32_t timeoutMs = kUseDefault);
@@ -277,6 +279,7 @@ private:
     bool acceptBroadcastSeq(const uint8_t mac[6], uint16_t seq);
     void reseedCounters(uint32_t now);
     bool acceptAppAck(PeerInfo &peer, uint16_t msgId);
+    void sendLeaveOnce();
 
     // failure tracking
     void recordSendFailure(const uint8_t mac[6]);

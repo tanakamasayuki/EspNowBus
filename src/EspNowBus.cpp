@@ -148,7 +148,7 @@ bool EspNowBus::begin(const Config &cfg)
     if (!payloadPool_ || !bufferUsed_)
     {
         ESP_LOGE(TAG, "buffer allocation failed");
-        end();
+        end(false, false);
         return false;
     }
     memset(bufferUsed_, 0, poolCount_);
@@ -157,7 +157,7 @@ bool EspNowBus::begin(const Config &cfg)
     if (!sendQueue_)
     {
         ESP_LOGE(TAG, "queue allocation failed");
-        end();
+        end(false, false);
         return false;
     }
 
@@ -175,7 +175,7 @@ bool EspNowBus::begin(const Config &cfg)
     if (created != pdPASS)
     {
         ESP_LOGE(TAG, "send task create failed");
-        end();
+        end(false, false);
         return false;
     }
     ESP_LOGI(TAG, "begin success (enc=%d, queue=%u, payload=%u, ch=%d, phy=%d)",
@@ -195,13 +195,62 @@ bool EspNowBus::begin(const char *groupName,
     return begin(cfg);
 }
 
-void EspNowBus::end()
+void EspNowBus::sendLeaveOnce()
 {
-    if (sendTask_)
+    uint8_t buf[kHeaderSize + 4 + kAuthTagLen]{};
+    uint16_t seq = ++broadcastSeq_;
+    buf[0] = kMagic;
+    buf[1] = kVersion;
+    buf[2] = PacketType::ControlLeave;
+    buf[3] = 0;
+    buf[4] = static_cast<uint8_t>(seq & 0xFF);
+    buf[5] = static_cast<uint8_t>((seq >> 8) & 0xFF);
+    uint32_t gid = derived_.groupId;
+    buf[6] = static_cast<uint8_t>(gid & 0xFF);
+    buf[7] = static_cast<uint8_t>((gid >> 8) & 0xFF);
+    buf[8] = static_cast<uint8_t>((gid >> 16) & 0xFF);
+    buf[9] = static_cast<uint8_t>((gid >> 24) & 0xFF);
+    size_t cursor = kHeaderSize + 4;
+    computeAuthTag(buf + cursor, buf, cursor, derived_.keyBcast);
+    size_t len = cursor + kAuthTagLen;
+    esp_err_t err = esp_now_send(kBroadcastMac, buf, len);
+    if (err != ESP_OK)
     {
-        vTaskDelete(sendTask_);
-        sendTask_ = nullptr;
+        ESP_LOGW(TAG, "send leave failed err=%d", static_cast<int>(err));
     }
+    vTaskDelay(pdMS_TO_TICKS(kLeaveWaitMs));
+}
+
+void EspNowBus::end(bool stopWiFi, bool sendLeave)
+{
+    // Stop send task first to avoid callbacks into a deleted queue
+    TaskHandle_t task = sendTask_;
+    sendTask_ = nullptr;
+    if (task)
+    {
+        vTaskDelete(task);
+    }
+
+    // Drain queued buffers
+    if (sendQueue_)
+    {
+        TxItem tmp{};
+        while (xQueueReceive(sendQueue_, &tmp, 0) == pdTRUE)
+        {
+            freeBuffer(tmp.bufferIndex);
+        }
+    }
+    if (txInFlight_)
+    {
+        freeBuffer(currentTx_.bufferIndex);
+        txInFlight_ = false;
+    }
+
+    if (sendLeave)
+    {
+        sendLeaveOnce();
+    }
+
     if (sendQueue_)
     {
         vQueueDelete(sendQueue_);
@@ -221,6 +270,10 @@ void EspNowBus::end()
     esp_now_unregister_send_cb();
     esp_now_unregister_recv_cb();
     esp_now_deinit();
+    if (stopWiFi)
+    {
+        WiFi.mode(WIFI_OFF);
+    }
     ESP_LOGI(TAG, "end complete");
 }
 
@@ -498,7 +551,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
     }
     if (!sendQueue_)
         return false;
-    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck || pktType == PacketType::ControlHeartbeat);
+    const bool needsAuth = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlAppAck || pktType == PacketType::ControlHeartbeat || pktType == PacketType::ControlLeave);
     const size_t totalLen = kHeaderSize + (needsAuth ? (4 + kAuthTagLen) : 0) + len;
     if (totalLen > maxLen)
     {
@@ -518,7 +571,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
 
     uint16_t msgId = 0;
     uint16_t seq = 0;
-    if (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck)
+    if (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlLeave)
     {
         seq = ++broadcastSeq_;
     }
@@ -532,7 +585,7 @@ bool EspNowBus::enqueueCommon(Dest dest, PacketType pktType, const uint8_t *mac,
     buf[1] = kVersion;
     buf[2] = pktType;
     buf[3] = 0; // flags
-    uint16_t idField = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck) ? seq : msgId;
+    uint16_t idField = (pktType == PacketType::DataBroadcast || pktType == PacketType::ControlJoinReq || pktType == PacketType::ControlJoinAck || pktType == PacketType::ControlLeave) ? seq : msgId;
     buf[4] = static_cast<uint8_t>(idField & 0xFF);
     buf[5] = static_cast<uint8_t>((idField >> 8) & 0xFF);
 
@@ -647,7 +700,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
              mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
              mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
 
-    const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck || type == PacketType::ControlAppAck);
+    const bool needsAuth = (type == PacketType::DataBroadcast || type == PacketType::ControlJoinReq || type == PacketType::ControlJoinAck || type == PacketType::ControlAppAck || type == PacketType::ControlHeartbeat || type == PacketType::ControlLeave);
     if (needsAuth)
     {
         if (!instance_->verifyAuthTag(data, len, type))
@@ -668,7 +721,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
     const uint8_t *payload = p + cursor;
     int payloadLen = len - static_cast<int>(cursor + (needsAuth ? kAuthTagLen : 0));
 
-    int idx = instance_->ensurePeer(mac);
+    int idx = (type == PacketType::ControlLeave) ? instance_->findPeerIndex(mac) : instance_->ensurePeer(mac);
     if (type == PacketType::DataUnicast)
     {
         if (idx >= 0)
@@ -714,6 +767,25 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
                      mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
             return;
         }
+    }
+    else if (type == PacketType::ControlLeave)
+    {
+        if (!instance_->acceptBroadcastSeq(mac, id))
+        {
+            ESP_LOGD(TAG, "rx leave replay drop seq=%u mac=%02X:%02X:%02X:%02X:%02X:%02X",
+                     static_cast<unsigned>(id),
+                     mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0,
+                     mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0);
+            return;
+        }
+        if (idx >= 0)
+        {
+            instance_->removePeer(mac);
+            idx = -1;
+        }
+        if (instance_->onJoinEvent_)
+            instance_->onJoinEvent_(mac, false, false);
+        return;
     }
     else if (type == PacketType::ControlJoinReq)
     {
@@ -886,7 +958,8 @@ bool EspNowBus::startSend(const TxItem &item)
         item.pktType == PacketType::ControlJoinReq ||
         item.pktType == PacketType::ControlJoinAck ||
         item.pktType == PacketType::ControlAppAck ||
-        item.pktType == PacketType::ControlHeartbeat)
+        item.pktType == PacketType::ControlHeartbeat ||
+        item.pktType == PacketType::ControlLeave)
     {
         const uint8_t *key = (item.pktType == PacketType::ControlJoinReq ||
                               item.pktType == PacketType::ControlJoinAck ||
