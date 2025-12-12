@@ -104,6 +104,7 @@ groupSecret → groupId / keyAuth / keyBcast
 - `ControlJoinReq` / `ControlJoinAck`  
 - `ControlHeartbeat`
 - `ControlAppAck`（論理 ACK 用）
+- `ControlLeave`（離脱通知）
 
 ### 6.3 種別別の振る舞い
 #### DataUnicast
@@ -147,6 +148,12 @@ groupSecret → groupId / keyAuth / keyBcast
   - `msgId`（2byte, LE）
   - `authTag = HMAC(keyAuth, header..msgId)`
   - ユニキャストのみで使用し、`enableAppAck=true` の場合に自動送信（別節の説明を参照）
+- ControlLeave（ブロードキャスト送信）:
+  - `BaseHeader`（id = seq）
+  - `groupId`
+  - `authTag = HMAC(keyBcast, header..groupId)`
+  - end(sendLeave=true) で送る離脱通知。seq は DataBroadcast と同じ単調増加カウンタを使い、リプレイ窓で重複排除する。キューに積まず 1 回だけブロードキャスト送信（リトライなし）し、短い待ち時間を置いてから終了に進む
+  - 受信側は groupId/authTag を検証し、送信元 MAC の peer を即削除してハートビート再接続/対象限定募集を抑止する（再JOINは相手からの明示的募集待ちに戻す）
 
 ---
 
@@ -207,7 +214,7 @@ public:
                bool useEncryption = true,
                uint16_t maxQueueLength = 16);
 
-    void end();
+    void end(bool stopWiFi = false, bool sendLeave = true);
 
     // timeoutMs: 0=非ブロック, portMAX_DELAY=無期限, kUseDefault=Config.sendTimeoutMs
     bool sendTo(const uint8_t mac[6], const void* data, size_t len, uint32_t timeoutMs = kUseDefault);
@@ -221,7 +228,13 @@ public:
     void onReceive(ReceiveCallback cb);       // データ受信時（mac, data, len, wasRetry, isBroadcast）
     void onSendResult(SendResultCallback cb); // 送信完了/失敗時
     void onAppAck(AppAckCallback cb);         // 論理ACK受信時
-    void onJoinEvent(JoinEventCb cb);         // JOIN 受理/拒否/成功/タイムアウトで離脱時
+    void onJoinEvent(JoinEventCb cb);         // JOIN 受理/拒否/成功/離脱（タイムアウト/明示的離脱）時
+
+// onJoinEvent のフラグ解釈（シグネチャは固定: mac, accepted, isAck）
+// accepted=true,  isAck=false : JoinReq を受理して Ack を送信した（募集受理）
+// accepted=true,  isAck=true  : JoinAck を受け取って JOIN 成功
+// accepted=false, isAck=true  : JoinAck 受信時に nonce 不一致などで失敗
+// accepted=false, isAck=false : タイムアウト離脱 or ControlLeave を受信して離脱を検知
 
     // ピア管理
     bool addPeer(const uint8_t mac[6]);
@@ -241,6 +254,11 @@ static constexpr uint8_t  kBroadcastMac[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF}; //
 static constexpr uint16_t kMaxPayloadDefault = 1470; // ESP-NOW v2.0 の MTU 目安
 static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 ```
+
+`end(stopWiFi=false, sendLeave=true)` の挙動:
+- sendLeave=true: 送信キューを破棄し、`ControlLeave` をブロードキャスト 1 回だけ送信（リトライなし、キュー非依存）。送信完了/失敗/txTimeout いずれか、または固定の短い待ち時間を過ぎたら送信タスクと ESP-NOW をクリーンアップする
+- stopWiFi=true: 上記に加えて Wi-Fi/ESP-NOW を停止して省電力化し、通信機能を完全にオフにする
+- sendLeave=false: 離脱通知を送らず静かに終了（以後は募集応答や送受信を行わないが、他用途で Wi-Fi はそのまま利用可能）
 
 推奨値の目安:
 - フル MTU を使いたい場合は `maxPayloadBytes = 1470`（デフォルト）。  
@@ -302,6 +320,7 @@ static constexpr uint16_t kMaxPayloadLegacy  = 250;  // 互換性重視サイズ
 - DataBroadcast → groupId & authTag を検証
 - ControlJoinReq → 自動ペア登録フローへ渡す
 - ControlHeartbeat → HMAC 検証後、Ping なら生存更新＋Pong を返す（AppAck は使わない）
+- ControlLeave → groupId/authTag を検証し、送信元 MAC の peer を即削除。以後のハートビートや対象限定募集での再接続は抑止し、再JOIN は相手の募集待ちに戻す
 
 ### 8.3 自動ペア登録
 - 募集（JOIN 要請）は 30 秒間隔の定期実行が既定。`0` を設定すると自動募集は無効化され、必要なときだけアプリが明示的に `sendJoinRequest()` を呼び出す運用になる  
@@ -342,6 +361,15 @@ JOIN リプレイに関する考え方:
 - ハートビート確認時間の **2 倍** を超過したら、ペア先の MAC を含めた対象限定のブロードキャスト募集を送信し、再ペアリングを試みる
 - **3 倍** 超過したら生存していないと判定し、ペアを解除する
 - 片側再起動によるユニキャスト不達を吸収するため、上記の対象限定募集でリンク復旧を優先する設計とする
+
+### 8.6 明示的離脱
+- `end(stopWiFi=false, sendLeave=true)` を呼ぶと、送信キューを破棄し、`ControlLeave` をブロードキャスト 1 回だけ送信（リトライなし、キューに積まない）。送信完了/失敗/txTimeout いずれか、または固定の短い待ち時間を過ぎたら終了処理を続行する
+- ControlLeave は keyBcast で署名された離脱通知。受信側は検証後ただちに送信元 MAC の peer を削除し、その相手へのハートビート再接続や対象限定募集を打ち切る（再JOIN は相手からの明示的募集を待つ）
+- `end(false, false)` は離脱通知を送らずに静かに終了し、自動募集/ハートビート/受信を止める
+- `end(true, sendLeave)` は上記に加えて Wi-Fi/ESP-NOW 自体も止め、省電力状態に入る（Wi-Fi を別用途に使う場合は false のままにする）
+- end 後は内部状態（送信キュー/peer 情報）を破棄するため、再参加時は `begin()` を呼び直す
+- ControlLeave 受信とハートビート 3x 超過のタイムアウト離脱は、ともに `onJoinEvent(mac, false, false)` で通知する
+- 離脱後のクールダウンなどの制御は行わず、再度 `begin()` してから自動ペア登録（autoJoin または sendJoinRequest）で復帰する前提。ファーム更新・再起動前の周知など一時的に受信できないケースでの利用を想定
 
 ---
 
