@@ -1,0 +1,11 @@
+EspNowBus	KEYWORD1
+Config	KEYWORD1
+sendTo	KEYWORD2
+broadcast	KEYWORD2
+sendToAllPeers	KEYWORD2
+onReceive	KEYWORD2
+onSendResult	KEYWORD2
+addPeer	KEYWORD2
+removePeer	KEYWORD2
+hasPeer	KEYWORD2
+sendRegistrationRequest	KEYWORD2
