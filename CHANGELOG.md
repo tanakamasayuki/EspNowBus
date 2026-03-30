@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 1.1.0
 - (EN) Added `EspNowSerial` and `EspNowSerialPort` as a Serial over ESP-NOW layer built on top of `EspNowBus`, with `Stream` / `Print` compatible APIs, fixed session slots, stable session indices, and session binding helpers such as `bind(mac)`, `bindSession(index)`, and `bindFirstAvailable()`
 - (JA) `EspNowBus` 上に Serial over ESP-NOW 層として `EspNowSerial` と `EspNowSerialPort` を追加し、`Stream` / `Print` 互換 API、固定 session slot、stable な session index、`bind(mac)` / `bindSession(index)` / `bindFirstAvailable()` などの session bind API を実装
 - (EN) Added Serial examples under `examples/Serial`, including basic pairing, controller bridge, silent device, multi-session monitor, and an `ESP32SerialCtl` integration example
