@@ -32,6 +32,18 @@ namespace
         }
         return info;
     }
+
+    const char *timeoutLabel(uint32_t timeoutMs, char *buf, size_t bufSize)
+    {
+        if (!buf || bufSize == 0)
+            return "";
+        if (timeoutMs == EspNowBus::kUseDefault)
+            return "default";
+        if (timeoutMs == portMAX_DELAY)
+            return "forever";
+        snprintf(buf, bufSize, "%ums", static_cast<unsigned>(timeoutMs));
+        return buf;
+    }
 } // namespace
 
 bool EspNowBus::begin(const Config &cfg)
@@ -281,16 +293,20 @@ bool EspNowBus::sendTo(const uint8_t mac[6], const void *data, size_t len, uint3
 {
     if (!mac)
         return false;
-    ESP_LOGD(TAG, "sendTo mac=%02X:%02X:%02X:%02X:%02X:%02X len=%u timeout=%u",
+    char timeoutBuf[24];
+    ESP_LOGD(TAG, "sendTo mac=%02X:%02X:%02X:%02X:%02X:%02X len=%u timeout=%s",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
              static_cast<unsigned>(len),
-             static_cast<unsigned>(timeoutMs));
+             timeoutLabel(timeoutMs, timeoutBuf, sizeof(timeoutBuf)));
     return enqueueCommon(Dest::Unicast, PacketType::DataUnicast, mac, data, len, timeoutMs);
 }
 
 bool EspNowBus::sendToAllPeers(const void *data, size_t len, uint32_t timeoutMs)
 {
-    ESP_LOGD(TAG, "sendToAllPeers len=%u timeout=%u", static_cast<unsigned>(len), static_cast<unsigned>(timeoutMs));
+    char timeoutBuf[24];
+    ESP_LOGD(TAG, "sendToAllPeers len=%u timeout=%s",
+             static_cast<unsigned>(len),
+             timeoutLabel(timeoutMs, timeoutBuf, sizeof(timeoutBuf)));
     bool ok = true;
     for (size_t i = 0; i < kMaxPeers; ++i)
     {
@@ -307,7 +323,10 @@ bool EspNowBus::sendToAllPeers(const void *data, size_t len, uint32_t timeoutMs)
 bool EspNowBus::broadcast(const void *data, size_t len, uint32_t timeoutMs)
 {
     static const uint8_t bcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    ESP_LOGD(TAG, "broadcast len=%u timeout=%u", static_cast<unsigned>(len), static_cast<unsigned>(timeoutMs));
+    char timeoutBuf[24];
+    ESP_LOGD(TAG, "broadcast len=%u timeout=%s",
+             static_cast<unsigned>(len),
+             timeoutLabel(timeoutMs, timeoutBuf, sizeof(timeoutBuf)));
     return enqueueCommon(Dest::Broadcast, PacketType::DataBroadcast, bcast, data, len, timeoutMs);
 }
 

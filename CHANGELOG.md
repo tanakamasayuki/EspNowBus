@@ -7,6 +7,8 @@
 - (JA) `useEncryption=false` 時でもユニキャストpeerをESP-NOW peer listへ追加するよう修正し、暗号化OFF時の送信失敗を改善
 - (EN) Reduced `-Wunused-variable` warnings in non-debug builds by suppressing log-only variable warnings in `EspNowBus.cpp`
 - (JA) 非デバッグビルドで `EspNowBus.cpp` のログ専用変数に起因する `-Wunused-variable` 警告を抑制
+- (EN) Improved timeout debug logs to show `default` / `forever` / `Nms` instead of raw special timeout values
+- (JA) timeout のデバッグログ表示を改善し、特別値を生の数値ではなく `default` / `forever` / `Nms` で表示するよう変更
 
 ## 1.0.1
 - (EN) Release workflow now rebuilds the release branch and tags it so rewritten sketch.yaml files are part of the tagged release contents
