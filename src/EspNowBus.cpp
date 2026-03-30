@@ -489,16 +489,19 @@ int EspNowBus::ensurePeer(const uint8_t mac[6])
             peers_[i].lastSeenMs = millis();
             peers_[i].heartbeatStage = 0;
             peers_[i].nonceValid = false;
-            if (config_.useEncryption)
+            esp_now_peer_info_t info = makePeerInfo(mac, config_.useEncryption, derived_.lmk);
+            esp_err_t err = esp_now_add_peer(&info);
+            if (err != ESP_OK && err != ESP_ERR_ESPNOW_EXIST)
             {
-                esp_now_peer_info_t info = makePeerInfo(mac, true, derived_.lmk);
-                if (esp_now_add_peer(&info) == ESP_OK)
-                {
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
-                    applyPeerRate(mac);
-#endif
-                }
+                peers_[i].inUse = false;
+                peers_[i].ready = false;
+                ESP_LOGE(TAG, "ensurePeer add_peer failed err=%d", static_cast<int>(err));
+                return -1;
             }
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+            if (err == ESP_OK)
+                applyPeerRate(mac);
+#endif
             return static_cast<int>(i);
         }
     }
