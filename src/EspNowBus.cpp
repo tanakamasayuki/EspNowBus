@@ -9,7 +9,7 @@
 #include <mbedtls/md.h>
 #include "esp_log.h"
 
-static const char *TAG = "EspNowBus";
+static const char *TAG __attribute__((unused)) = "EspNowBus";
 
 EspNowBus *EspNowBus::instance_ = nullptr;
 
@@ -809,6 +809,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             return; // not for us
         }
         size_t peers = instance_->peerCount();
+        (void)peers;
         ESP_LOGD(TAG, "join req received from %02X:%02X:%02X:%02X:%02X:%02X peers=%u",
                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
                  static_cast<unsigned>(peers));

@@ -7,6 +7,14 @@ profiles:
     libraries:
       - dir: ../../
 
+  esp32-nodebug:
+    fqbn: esp32:esp32:esp32
+    platforms:
+      - platform: esp32:esp32 (3.3.7)
+        platform_index_url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+    libraries:
+      - dir: ../../
+
   esp32s3:
     fqbn: esp32:esp32:esp32s3:CDCOnBoot=cdc,DebugLevel=debug
     platforms:
