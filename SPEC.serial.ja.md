@@ -137,7 +137,14 @@ struct EspNowBusAppHeader {
 - peer timeout / leave / remove で `Connected -> Disconnected`
 - peer 再参加で同じ Session を再利用してもよいが、`sessionNonce` は更新する
 
-### 5.3 Session と Port の関係
+### 5.3 Session slot と index
+- Session は固定長 slot 配列で管理する
+- 各 Session は stable な index を持つ
+- peer 切断時も slot は維持し、Session 状態のみ `Disconnected` に遷移する
+- 同じ peer が再接続した場合は、可能な限り同じ slot を再利用する
+- Session index は controller 側スケッチから参照できる安定識別子として扱う
+
+### 5.4 Session と Port の関係
 - Session は hub 内部の通信単位
 - `EspNowSerialPort` は Session を参照するハンドル
 - 1 Port は 1 Session のみ参照する
@@ -372,7 +379,10 @@ public:
     void end();
     void poll();
 
-    size_t sessionCount() const;
+    size_t sessionCapacity() const;
+    bool sessionInUse(size_t index) const;
+    bool sessionConnected(size_t index) const;
+    int sessionAvailable(size_t index) const;
     bool sessionMac(size_t index, uint8_t macOut[6]) const;
     bool hasSession(const uint8_t mac[6]) const;
 };
@@ -389,6 +399,7 @@ public:
     void detach();
 
     bool bind(const uint8_t mac[6]);
+    bool bindSession(size_t index);
     bool bindFirstAvailable();
     void unbind();
 
@@ -417,13 +428,24 @@ public:
 - 出力系 API は `write`, `print`, `println`, `printf`, `vprintf`, `flush` を中心とする
 - 入力系 API は `available`, `availableForWrite`, `peek`, `read`, `read(buffer, size)`, `readBytes(...)` を中心とする
 
-### 12.4 `printf` 系 API
+### 12.4 Hub の最小管理 API
+- `EspNowSerial` の公開管理機能は最小限に留める
+- controller 側で必要な責務は「Session 一覧取得」と「Session 切り替え」とする
+- 高度な管理機構や中央集約受信 API は持たない
+
+用途:
+- Session 一覧表示
+- 接続状態確認
+- データが溜まっている Session の確認
+- `EspNowSerialPort` の bind 先切り替え
+
+### 12.5 `printf` 系 API
 - `EspNowSerialPort` は `Print` 互換に加えて、ESP32 の `Serial` に近い `printf` / `vprintf` を提供する
 - フォーマット結果は内部で一時バッファ化し、`write()` と同じ送信経路へ流す
 - 未接続時は `write()` と同様に 0 を返してよい
 - 一時バッファ上限を超える場合は切り詰めまたは送信失敗のどちらかを実装方針として選べるが、仕様上は安全に失敗できることを優先する
 
-### 12.5 UART 固有 API との線引き
+### 12.6 UART 固有 API との線引き
 - `EspNowSerialPort` は `HardwareSerial` の完全互換を目的としない
 - UART ハードウェア固有の設定 API は持たない
 - 例:
@@ -434,7 +456,7 @@ public:
   - UART mode / clock source / inversion 設定
   - UART 割り込み前提の `onReceive` / `onReceiveError`
 
-### 12.6 グローバル定義前提
+### 12.7 グローバル定義前提
 以下のような利用を許容する。
 
 ```cpp
@@ -452,6 +474,21 @@ void setup() {
 
   controlSerial.attach(serialHub);
   controlSerial.bindFirstAvailable();
+}
+```
+
+controller 側の最小利用例:
+
+```cpp
+for (size_t i = 0; i < serialHub.sessionCapacity(); ++i) {
+  if (!serialHub.sessionInUse(i)) continue;
+  if (!serialHub.sessionConnected(i)) continue;
+  if (serialHub.sessionAvailable(i) <= 0) continue;
+
+  controlSerial.bindSession(i);
+  while (controlSerial.available()) {
+    Serial.write(controlSerial.read());
+  }
 }
 ```
 
