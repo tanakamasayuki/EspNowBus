@@ -341,6 +341,7 @@ bool EspNowBus::addPeer(const uint8_t mac[6])
     idx = ensurePeer(mac);
     if (idx < 0)
         return false;
+    peers_[idx].ready = true;
 
     esp_now_peer_info_t info = makePeerInfo(mac, config_.useEncryption, derived_.lmk);
     esp_err_t err = esp_now_add_peer(&info);
@@ -367,13 +368,15 @@ bool EspNowBus::removePeer(const uint8_t mac[6])
     if (idx >= 0)
     {
         peers_[idx].inUse = false;
+        peers_[idx].ready = false;
     }
     return true;
 }
 
 bool EspNowBus::hasPeer(const uint8_t mac[6]) const
 {
-    return findPeerIndex(mac) >= 0;
+    int idx = findPeerIndex(mac);
+    return idx >= 0 && peers_[idx].ready;
 }
 
 size_t EspNowBus::peerCount() const
@@ -381,7 +384,7 @@ size_t EspNowBus::peerCount() const
     size_t cnt = 0;
     for (size_t i = 0; i < kMaxPeers; ++i)
     {
-        if (peers_[i].inUse)
+        if (peers_[i].inUse && peers_[i].ready)
             ++cnt;
     }
     return cnt;
@@ -392,7 +395,7 @@ bool EspNowBus::getPeer(size_t index, uint8_t macOut[6]) const
     size_t cnt = 0;
     for (size_t i = 0; i < kMaxPeers; ++i)
     {
-        if (!peers_[i].inUse)
+        if (!peers_[i].inUse || !peers_[i].ready)
             continue;
         if (cnt == index)
         {
@@ -478,6 +481,7 @@ int EspNowBus::ensurePeer(const uint8_t mac[6])
         if (!peers_[i].inUse)
         {
             peers_[i].inUse = true;
+            peers_[i].ready = false;
             memcpy(peers_[i].mac, mac, 6);
             peers_[i].lastMsgId = 0;
             peers_[i].lastBroadcastBase = 0;
@@ -728,6 +732,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
         {
             instance_->peers_[idx].lastSeenMs = millis();
             instance_->peers_[idx].heartbeatStage = 0;
+            instance_->peers_[idx].ready = true;
         }
         bool duplicate = (idx >= 0 && instance_->peers_[idx].lastMsgId == id);
         if (idx >= 0 && !duplicate)
@@ -857,6 +862,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
             instance_->peers_[idx].nonceValid = true;
             instance_->peers_[idx].lastSeenMs = millis();
             instance_->peers_[idx].heartbeatStage = 0;
+            instance_->peers_[idx].ready = true;
         }
         memcpy(instance_->storedNonceB_, ack->nonceB, kNonceLen);
         instance_->storedNonceBValid_ = true;
@@ -883,6 +889,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
         {
             instance_->peers_[idx].lastSeenMs = millis();
             instance_->peers_[idx].heartbeatStage = 0;
+            instance_->peers_[idx].ready = true;
         }
         if (instance_->txInFlight_ && instance_->currentTx_.expectAck && ack->msgId == instance_->currentTx_.msgId)
         {
@@ -912,6 +919,7 @@ void EspNowBus::onReceiveStatic(const uint8_t *mac, const uint8_t *data, int len
         {
             instance_->peers_[idx].lastSeenMs = millis();
             instance_->peers_[idx].heartbeatStage = 0;
+            instance_->peers_[idx].ready = true;
         }
         if (hb->kind == 0)
         {
@@ -1095,6 +1103,7 @@ void EspNowBus::sendTaskLoop()
                     onJoinEvent_(p.mac, false, false); // treat as leave/timeout
                 removePeer(p.mac);
                 p.inUse = false;
+                p.ready = false;
                 continue;
             }
             if (elapsed >= hb * 2)

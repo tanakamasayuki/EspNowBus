@@ -174,6 +174,7 @@ private:
     {
         uint8_t mac[6];
         bool inUse = false;
+        bool ready = false; // externally visible/sendable peer
         uint16_t lastMsgId = 0;
         uint16_t lastBroadcastBase = 0;
         uint32_t bcastWindow = 0; // bit0 = base+1 ... bit32 = base+32
