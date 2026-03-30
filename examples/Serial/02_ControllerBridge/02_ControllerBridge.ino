@@ -1,8 +1,8 @@
 #include <EspNowSerial.h>
 #include <WiFi.h>
 
-// en: Controller-side USB bridge example with session list and session switching.
-// ja: Session 一覧表示と切り替えを行う controller 側 USB bridge サンプル。
+// en: Controller-side transparent USB bridge with local escape commands.
+// ja: ローカル制御コマンド付きの透過 USB bridge を行う controller 側サンプル。
 
 EspNowSerial serialHub;
 EspNowSerialPort controlSerial;
@@ -16,11 +16,13 @@ void printMac(const uint8_t mac[6])
 
 void printHelp()
 {
-  Serial.println("Commands:");
-  Serial.println("  list              - show sessions");
-  Serial.println("  use <index>       - bind controlSerial to session index");
-  Serial.println("  send <text>       - send text to current session");
-  Serial.println("  help              - show this help");
+  Serial.println("Transparent bridge mode:");
+  Serial.println("  Any normal line is forwarded to the selected session.");
+  Serial.println("  Session 0 is selected automatically when it becomes available.");
+  Serial.println("Local commands:");
+  Serial.println("  ///list           - show sessions");
+  Serial.println("  ///use <index>    - bind controlSerial to session index");
+  Serial.println("  ///help           - show this help");
 }
 
 void listSessions()
@@ -78,35 +80,52 @@ void bindSessionIndex(int index)
   Serial.printf("selected session %d\n", currentSession);
 }
 
+void tryAutoBindDefaultSession()
+{
+  if (currentSession >= 0 || controlSerial.connected())
+  {
+    return;
+  }
+  if (!serialHub.sessionInUse(0))
+  {
+    return;
+  }
+  if (!controlSerial.bindSession(0))
+  {
+    return;
+  }
+
+  currentSession = 0;
+  Serial.println("auto-selected session 0");
+}
+
 void handleLine(const String &line)
 {
-  if (line == "list")
+  if (line == "///list")
   {
     listSessions();
     return;
   }
-  if (line == "help")
+  if (line == "///help")
   {
     printHelp();
     return;
   }
-  if (line.startsWith("use "))
+  if (line.startsWith("///use "))
   {
-    bindSessionIndex(line.substring(4).toInt());
+    bindSessionIndex(line.substring(7).toInt());
     return;
   }
-  if (line.startsWith("send "))
+
+  // en: Lines that do not begin with the local escape prefix are forwarded as-is.
+  // ja: ローカル escape prefix で始まらない行は、そのまま選択中 session へ転送する。
+  if (currentSession < 0 || !controlSerial.connected())
   {
-    if (currentSession < 0 || !controlSerial.connected())
-    {
-      Serial.println("no active session");
-      return;
-    }
-    String payload = line.substring(5);
-    controlSerial.printf("[controller] %s\n", payload.c_str());
+    Serial.println("no active session");
     return;
   }
-  Serial.println("unknown command");
+  controlSerial.write(reinterpret_cast<const uint8_t *>(line.c_str()), line.length());
+  controlSerial.write('\n');
 }
 
 void setup()
@@ -124,12 +143,15 @@ void setup()
   }
 
   controlSerial.attach(serialHub);
+  // en: Session 0 is selected automatically when it becomes available.
+  // ja: session 0 が使えるようになったら自動選択する。
   printHelp();
 }
 
 void loop()
 {
   serialHub.poll();
+  tryAutoBindDefaultSession();
 
   static String commandLine;
   while (Serial.available() > 0)
