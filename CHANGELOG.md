@@ -1,6 +1,10 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) `peerCount()`, `getPeer()`, and `hasPeer()` now expose only ready/sendable peers instead of peers merely discovered by receive-side tracking
+- (JA) `peerCount()`, `getPeer()`, `hasPeer()` は受信で見えただけのpeerではなく、送信可能なready peerのみを返すように変更
+- (EN) Fixed peer registration when `useEncryption=false` so unicast peers are still added to the ESP-NOW peer list
+- (JA) `useEncryption=false` 時でもユニキャストpeerをESP-NOW peer listへ追加するよう修正し、暗号化OFF時の送信失敗を改善
 
 ## 1.0.1
 - (EN) Release workflow now rebuilds the release branch and tags it so rewritten sketch.yaml files are part of the tagged release contents
