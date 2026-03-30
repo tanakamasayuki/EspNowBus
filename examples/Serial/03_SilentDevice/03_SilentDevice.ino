@@ -41,6 +41,22 @@ void loop()
   // ja: Port access 側の補助処理に頼らず、ここでも定期 poll() を推奨。
   serialHub.poll();
 
+  static uint32_t lastReport = 0;
+  if (millis() - lastReport > 3000)
+  {
+    lastReport = millis();
+
+    // en: Periodically push a short status line to the controller so traffic is visible
+    //     even when no command is typed on the USB side.
+    // ja: USB 側でコマンドを打たなくても動きが見えるよう、定期的に短い状態行を親へ送る。
+    uint8_t selfMac[6] = {};
+    WiFi.macAddress(selfMac);
+    controlSerial.printf("[device %02X:%02X:%02X:%02X:%02X:%02X] tick=%lu\n",
+                         selfMac[0], selfMac[1], selfMac[2],
+                         selfMac[3], selfMac[4], selfMac[5],
+                         static_cast<unsigned long>(millis()));
+  }
+
   while (controlSerial.available() > 0)
   {
     int c = controlSerial.read();
