@@ -302,11 +302,13 @@ struct SerialClosePayload {
 ```text
 serialPayloadMax =
   EspNowBus.Config.maxPayloadBytes
-  - EspNowBus transport overhead
+  - EspNowBus header (6 bytes)
   - EspNowBusAppHeader
   - SerialDataHeader
 ```
 
+- 現行の unicast data では `serialPayloadMax = Config.maxPayloadBytes - 16` として扱う
+- 内訳は `EspNowBus` header 6 byte + `EspNowBusAppHeader` 4 byte + `SerialDataHeader` 6 byte
 - `EspNowSerial` は `write()` されたデータを `serialPayloadMax` 単位で分割して送信する
 - 受信側は受け取った `SerialData` payload をそのまま RX FIFO に連結する
 

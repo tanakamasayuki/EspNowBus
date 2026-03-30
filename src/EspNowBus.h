@@ -48,6 +48,7 @@ public:
     static constexpr uint16_t kMaxPayloadDefault = 1470;
     static constexpr uint16_t kMaxPayloadLegacy = 250;
     static constexpr uint8_t kAuthTagLen = 16;
+    static constexpr size_t kHeaderSize = 6; // magic(1)+ver(1)+type(1)+flags(1)+id(2: msgId or seq)
     static constexpr uint16_t kReplayWindow = 32;
     static constexpr uint8_t kNonceLen = 8;
     static constexpr uint16_t kNonceWindow = 128;
@@ -217,7 +218,6 @@ private:
 
     static constexpr uint8_t kMagic = 0xEB;
     static constexpr uint8_t kVersion = 1;
-    static constexpr size_t kHeaderSize = 6; // magic(1)+ver(1)+type(1)+flags(1)+id(2: msgId or seq)
 
     uint16_t msgCounter_ = 0;
     uint16_t broadcastSeq_ = 0;

@@ -1,4 +1,6 @@
 EspNowBus	KEYWORD1
+EspNowSerial	KEYWORD1
+EspNowSerialPort	KEYWORD1
 Config	KEYWORD1
 sendTo	KEYWORD2
 broadcast	KEYWORD2
@@ -9,3 +11,12 @@ addPeer	KEYWORD2
 removePeer	KEYWORD2
 hasPeer	KEYWORD2
 sendRegistrationRequest	KEYWORD2
+poll	KEYWORD2
+bind	KEYWORD2
+bindSession	KEYWORD2
+bindFirstAvailable	KEYWORD2
+attach	KEYWORD2
+detach	KEYWORD2
+connected	KEYWORD2
+availableForWrite	KEYWORD2
+printf	KEYWORD2
