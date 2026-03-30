@@ -26,6 +26,8 @@ void setup()
   }
 
   controlSerial.attach(serialHub);
+  // en: Attach to the first controller-side session that appears.
+  // ja: 最初に見つかった controller 側 session に接続する。
   controlSerial.bindFirstAvailable();
 
   uint8_t selfMac[6] = {};
@@ -59,6 +61,8 @@ void loop()
 
   while (controlSerial.available() > 0)
   {
+    // en: Consume any pending bytes from the controller side.
+    // ja: controller 側から届いた byte を順に処理する。
     int c = controlSerial.read();
     if (c < 0)
     {

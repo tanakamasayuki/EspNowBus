@@ -14,6 +14,8 @@ void setup()
   Serial.begin(115200);
   delay(500);
 
+  // en: Shared group name used by the controller bridge and this CLI device.
+  // ja: controller bridge とこの CLI device で共有するグループ名。
   EspNowSerial::Config cfg;
   cfg.groupName = "espnow-serial-demo";
 
@@ -28,6 +30,8 @@ void setup()
   }
 
   controlSerial.attach(serialHub);
+  // en: Bind to the first controller-side session so the remote CLI becomes reachable.
+  // ja: 最初の controller 側 session に bind して、リモート CLI を使えるようにする。
   controlSerial.bindFirstAvailable();
 
   uint8_t selfMac[6] = {};

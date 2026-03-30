@@ -27,6 +27,8 @@ void printHelp()
 
 void listSessions()
 {
+  // en: Print every active session so the controller can choose one explicitly.
+  // ja: controller 側で選べるよう、使用中 session を一覧表示する。
   Serial.println("Sessions:");
   for (size_t i = 0; i < serialHub.sessionCapacity(); ++i)
   {
@@ -82,6 +84,8 @@ void bindSessionIndex(int index)
 
 void tryAutoBindDefaultSession()
 {
+  // en: Auto-select session 0 for the common two-device controller/device setup.
+  // ja: 2 台構成を想定し、session 0 を自動選択する。
   if (currentSession >= 0 || controlSerial.connected())
   {
     return;
@@ -156,6 +160,8 @@ void loop()
   static String commandLine;
   while (Serial.available() > 0)
   {
+    // en: Read one line from USB Serial and either handle it locally or forward it.
+    // ja: USB Serial から 1 行読み、ローカル処理または転送を行う。
     char c = static_cast<char>(Serial.read());
     if (c == '\r')
     {
@@ -174,6 +180,8 @@ void loop()
   // ja: 現在選択中の session からの受信を USB Serial へ流す。
   while (controlSerial.available() > 0)
   {
+    // en: Forward device-side output to the PC side USB serial.
+    // ja: device 側の出力を PC 側の USB シリアルへ転送する。
     Serial.write(controlSerial.read());
   }
 }

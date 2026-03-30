@@ -10,6 +10,7 @@ Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. 
 - Auto peer registration: nodes can broadcast join requests; eligible nodes accept and register peers automatically.
 - Deterministic sending: outbound messages are queued and sent one at a time by a FreeRTOS task.
 - Heartbeat-driven liveness: periodic unicast heartbeat (Ping/Pong) and automatic re-JOIN when peers go quiet.
+- Optional Serial layer: `EspNowSerial` and `EspNowSerialPort` provide a `Stream` / `Print` style serial abstraction on top of `EspNowBus`.
 
 ## Concepts
 - **Group name → keys/IDs**: A `groupName` derives `groupSecret`, `groupId`, `keyAuth` (join auth), and `keyBcast` (broadcast auth).
@@ -105,6 +106,24 @@ Semantics: `0` = non-blocking, `portMAX_DELAY` = block forever, `kUseDefault` (`
 - [`examples/10_LowFootprintBroadcast`](examples/10_LowFootprintBroadcast): Minimal footprint broadcast (encryption/AppAck/peerAuth OFF, payload capped at 250B, small queue).
 - [`examples/11_FullConfigTemplate`](examples/11_FullConfigTemplate): Template with every `Config` field spelled out at its default value.
 - [`examples/12_ExplicitLeave`](examples/12_ExplicitLeave): Serial commands to `end(stopWiFi, sendLeave)`, restart Wi-Fi, re-`begin`, and `ESP.restart()` for explicit leave/rejoin behavior.
+
+## Serial over EspNow
+
+This repository also includes `EspNowSerial`, a lightweight serial-style layer built on top of `EspNowBus`.
+
+- Hub class: `EspNowSerial`
+- Port class: `EspNowSerialPort`
+- API style: Arduino `Stream` / `Print`
+
+See the Serial example set in [`examples/Serial`](examples/Serial):
+
+- [`examples/Serial/01_BasicPair`](examples/Serial/01_BasicPair)
+- [`examples/Serial/02_ControllerBridge`](examples/Serial/02_ControllerBridge)
+- [`examples/Serial/03_SilentDevice`](examples/Serial/03_SilentDevice)
+- [`examples/Serial/04_MultiSessionMonitor`](examples/Serial/04_MultiSessionMonitor)
+- [`examples/Serial/05_ESP32SerialCtlDevice`](examples/Serial/05_ESP32SerialCtlDevice)
+
+These examples cover direct pairing, controller/device bridging, multi-session monitoring, and bridging an external serial CLI library over ESP-NOW.
 
 ### Retries, JOIN, heartbeat, duplicates
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.

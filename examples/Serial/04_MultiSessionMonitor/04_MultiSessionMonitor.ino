@@ -11,6 +11,8 @@ void setup()
   Serial.begin(115200);
   delay(500);
 
+  // en: Shared group name for all monitored serial sessions.
+  // ja: 監視対象の serial session で共有するグループ名。
   EspNowSerial::Config cfg;
   cfg.groupName = "espnow-serial-demo";
 
@@ -26,6 +28,8 @@ void setup()
 
 void loop()
 {
+  // en: Keep the session table and TX/RX state updated.
+  // ja: session 一覧と TX/RX 状態を更新する。
   serialHub.poll();
 
   for (size_t i = 0; i < serialHub.sessionCapacity(); ++i)
@@ -47,6 +51,8 @@ void loop()
       continue;
     }
 
+    // en: Prefix each output line with session index and peer MAC when known.
+    // ja: どの session の出力か分かるよう、index と MAC を先頭に付ける。
     uint8_t mac[6] = {};
     bool hasMac = serialHub.sessionMac(i, mac);
     if (hasMac)
@@ -62,6 +68,8 @@ void loop()
 
     while (monitorPort.available() > 0)
     {
+      // en: Stream the selected session data to the local USB serial monitor.
+      // ja: 選択中 session のデータをローカル USB シリアルへ流す。
       Serial.write(monitorPort.read());
     }
   }

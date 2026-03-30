@@ -12,6 +12,8 @@ void setup()
   Serial.begin(115200);
   delay(500);
 
+  // en: Shared group name for the Serial over EspNow link.
+  // ja: Serial over EspNow で共有するグループ名。
   EspNowSerial::Config cfg;
   cfg.groupName = "espnow-serial-demo";
 
@@ -22,6 +24,8 @@ void setup()
   }
 
   controlSerial.attach(serialHub);
+  // en: Bind to the first session that becomes available.
+  // ja: 最初に使える session へ bind する。
   controlSerial.bindFirstAvailable();
 
   Serial.println("EspNowSerial basic pair ready");
@@ -59,6 +63,8 @@ void loop()
 
   while (controlSerial.available() > 0)
   {
+    // en: Forward received bytes to the local USB serial monitor.
+    // ja: 受信した byte をローカルの USB シリアルへ流す。
     Serial.write(controlSerial.read());
   }
 }
