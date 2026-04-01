@@ -79,20 +79,6 @@ bool EspNowBus::begin(const Config &cfg)
         return false;
     }
 
-    // Wi-Fi channel: -1 = auto (hash from group), otherwise clip to 1-13
-    if (config_.channel == -1)
-    {
-        config_.channel = static_cast<int8_t>((derived_.groupId % 13) + 1);
-        ESP_LOGI(TAG, "auto channel -> %d", static_cast<int>(config_.channel));
-    }
-    else
-    {
-        if (config_.channel < 1)
-            config_.channel = 1;
-        if (config_.channel > 13)
-            config_.channel = 13;
-    }
-
 #if defined(WIFI_PHY_RATE_MAX)
     if (config_.phyRate >= WIFI_PHY_RATE_MAX)
     {
@@ -105,6 +91,50 @@ bool EspNowBus::begin(const Config &cfg)
         config_.replayWindowBcast = 32;
 
     WiFi.mode(WIFI_STA);
+    int8_t configuredChannel = config_.channel;
+    int8_t effectiveChannel = configuredChannel;
+    bool usedAutoChannel = false;
+    bool usedStaOverride = false;
+
+    // Wi-Fi channel:
+    // - if STA is already connected, the associated AP channel wins
+    // - else -1 means auto (hash from group)
+    if (configuredChannel == -1)
+    {
+        effectiveChannel = static_cast<int8_t>((derived_.groupId % 13) + 1);
+        usedAutoChannel = true;
+    }
+    else
+    {
+        if (effectiveChannel < 1)
+            effectiveChannel = 1;
+        if (effectiveChannel > 13)
+            effectiveChannel = 13;
+    }
+
+    int32_t staChannel = WiFi.channel();
+    if (WiFi.status() == WL_CONNECTED && staChannel >= 1 && staChannel <= 13)
+    {
+        effectiveChannel = static_cast<int8_t>(staChannel);
+        usedStaOverride = true;
+    }
+    config_.channel = effectiveChannel;
+
+    if (usedStaOverride)
+    {
+        ESP_LOGI(TAG, "channel override by connected STA (configured=%d effective=%d)",
+                 static_cast<int>(configuredChannel), static_cast<int>(effectiveChannel));
+    }
+    else if (usedAutoChannel)
+    {
+        ESP_LOGI(TAG, "auto channel -> %d", static_cast<int>(effectiveChannel));
+    }
+    else
+    {
+        ESP_LOGI(TAG, "channel configured=%d effective=%d",
+                 static_cast<int>(configuredChannel), static_cast<int>(effectiveChannel));
+    }
+
     esp_wifi_get_mac(WIFI_IF_STA, selfMac_);
     // Prime auto-join so the first loop run triggers immediately when enabled
     if (config_.autoJoinIntervalMs > 0)
