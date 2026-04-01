@@ -161,6 +161,8 @@ SendStatus の扱い:
 
 ## ドキュメント
 - 仕様詳細: [`SPEC.ja.md`](SPEC.ja.md)
+- Serial 拡張仕様: [`SPEC.serial.ja.md`](SPEC.serial.ja.md)
+- IP 拡張仕様: [`SPEC.ip.ja.md`](SPEC.ip.ja.md)
 - 英語 README: [`README.md`](README.md)
 - ユースケース例:
   - センサーノード → ゲートウェイの小規模ネットワーク

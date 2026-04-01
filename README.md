@@ -164,6 +164,9 @@ SendStatus notes:
 
 ## Documentation
 - Detailed spec: [`SPEC.md`](SPEC.md)
+- Serial extension spec (Japanese): [`SPEC.serial.ja.md`](SPEC.serial.ja.md)
+- IP extension spec: [`SPEC.ip.md`](SPEC.ip.md)
+- IP extension spec (Japanese): [`SPEC.ip.ja.md`](SPEC.ip.ja.md)
 - Japanese README: [`README.ja.md`](README.ja.md)
 - Use cases:
   - Small sensor → gateway networks
