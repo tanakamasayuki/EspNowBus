@@ -18,6 +18,7 @@ constexpr const char *kGroupName = "espnow-ip-demo";
 constexpr uint16_t kMtu = 1420;
 constexpr uint32_t kRunIntervalMs = 30000;
 constexpr uint32_t kPingTaskStackSize = 4096;
+constexpr int kNtpRetries = 3;
 constexpr const char *kDnsHost = "example.com";
 constexpr const char *kNtpHost = "pool.ntp.org";
 constexpr uint16_t kNtpPort = 123;
@@ -164,49 +165,54 @@ static bool runNtpTest()
     return false;
   }
 
-  NetworkUDP udp;
-  if (!udp.begin(0))
+  for (int attempt = 1; attempt <= kNtpRetries; ++attempt)
   {
-    Serial.println("[FAIL] NTP UDP begin");
-    return false;
-  }
-
-  uint8_t packet[48]{};
-  packet[0] = 0x1B;
-  udp.beginPacket(ntpIp, kNtpPort);
-  udp.write(packet, sizeof(packet));
-  if (!udp.endPacket())
-  {
-    Serial.printf("[FAIL] NTP send %s\n", ntpIp.toString().c_str());
-    udp.stop();
-    return false;
-  }
-
-  uint32_t start = millis();
-  while ((millis() - start) < 3000UL)
-  {
-    int size = udp.parsePacket();
-    if (size >= 48)
+    NetworkUDP udp;
+    if (!udp.begin(0))
     {
-      uint8_t response[48]{};
-      udp.read(response, sizeof(response));
-      uint32_t seconds1900 = (static_cast<uint32_t>(response[40]) << 24) |
-                             (static_cast<uint32_t>(response[41]) << 16) |
-                             (static_cast<uint32_t>(response[42]) << 8) |
-                             static_cast<uint32_t>(response[43]);
-      uint32_t unixTime = seconds1900 > 2208988800UL ? seconds1900 - 2208988800UL : 0;
-      Serial.printf("[ OK ] NTP %s (%s) unix=%lu\n",
-                    kNtpHost,
-                    ntpIp.toString().c_str(),
-                    static_cast<unsigned long>(unixTime));
-      udp.stop();
-      return true;
+      Serial.printf("[FAIL] NTP UDP begin attempt=%d\n", attempt);
+      return false;
     }
-    delay(10);
+
+    uint8_t packet[48]{};
+    packet[0] = 0x1B;
+    udp.beginPacket(ntpIp, kNtpPort);
+    udp.write(packet, sizeof(packet));
+    if (!udp.endPacket())
+    {
+      Serial.printf("[FAIL] NTP send %s attempt=%d\n", ntpIp.toString().c_str(), attempt);
+      udp.stop();
+      continue;
+    }
+
+    uint32_t start = millis();
+    while ((millis() - start) < 3000UL)
+    {
+      int size = udp.parsePacket();
+      if (size >= 48)
+      {
+        uint8_t response[48]{};
+        udp.read(response, sizeof(response));
+        uint32_t seconds1900 = (static_cast<uint32_t>(response[40]) << 24) |
+                               (static_cast<uint32_t>(response[41]) << 16) |
+                               (static_cast<uint32_t>(response[42]) << 8) |
+                               static_cast<uint32_t>(response[43]);
+        uint32_t unixTime = seconds1900 > 2208988800UL ? seconds1900 - 2208988800UL : 0;
+        Serial.printf("[ OK ] NTP %s (%s) unix=%lu attempt=%d\n",
+                      kNtpHost,
+                      ntpIp.toString().c_str(),
+                      static_cast<unsigned long>(unixTime),
+                      attempt);
+        udp.stop();
+        return true;
+      }
+      delay(10);
+    }
+
+    udp.stop();
   }
 
   Serial.printf("[FAIL] NTP %s (%s)\n", kNtpHost, ntpIp.toString().c_str());
-  udp.stop();
   return false;
 }
 

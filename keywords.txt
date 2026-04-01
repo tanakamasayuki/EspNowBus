@@ -3,6 +3,7 @@ EspNowSerial	KEYWORD1
 EspNowSerialPort	KEYWORD1
 EspNowIP	KEYWORD1
 EspNowIPGateway	KEYWORD1
+EspNowPPPoS	KEYWORD1
 Config	KEYWORD1
 sendTo	KEYWORD2
 broadcast	KEYWORD2
