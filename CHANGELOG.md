@@ -1,6 +1,16 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+- (EN) Added `EspNowIP` and `EspNowIPGateway` as an IPv4-over-ESP-NOW layer on top of `EspNowBus`, including `esp_netif` integration, a minimal `Hello` / `Lease` control plane, `IpData` transport, lease application on the device side, and gateway-side IPv4 NAT over an uplink `esp_netif`
+- (JA) `EspNowBus` 上の IPv4-over-ESP-NOW 層として `EspNowIP` と `EspNowIPGateway` を追加し、`esp_netif` 連携、最小の `Hello` / `Lease` control plane、`IpData` transport、device 側 lease 適用、gateway 側 uplink `esp_netif` に対する IPv4 NAT を実装
+- (EN) Added `EspNowPPPoS` as a raw `lwIP PPPoS` helper that accepts an already-initialized `Stream`, exposes a PPP `esp_netif`, leaves serial initialization to the user, and supports optional silent logging
+- (JA) 初期化済み `Stream` を受け取る raw `lwIP PPPoS` ヘルパーとして `EspNowPPPoS` を追加し、PPP `esp_netif` の公開、シリアル初期化のユーザー責務化、任意の silent logging をサポート
+- (EN) Added and validated `examples/IP`, including device bring-up, Wi-Fi STA gateway, Ethernet gateway, PPP gateway scaffold, and a connectivity check example that verifies gateway ping, DNS, internet ping, NTP, and HTTP
+- (JA) `examples/IP` を追加し、device bring-up、Wi-Fi STA gateway、Ethernet gateway、PPP gateway scaffold、gateway ping / DNS / internet ping / NTP / HTTP を確認する connectivity check サンプルを整備
+- (EN) Added IP documentation: `SPEC.ip.ja.md`, `SPEC.ip.md`, related README links, and example READMEs for the new IP examples
+- (JA) `SPEC.ip.ja.md`、`SPEC.ip.md`、README からの導線、各 IP example の README など、IP 向けドキュメントを追加
+- (EN) Improved `EspNowBus` channel selection so a connected Wi-Fi STA channel becomes the effective ESP-NOW channel, even when auto-channel or an explicit channel was configured, and added clearer configured/effective channel logs
+- (JA) `EspNowBus` の channel 選択を改善し、Wi-Fi STA 接続中は auto 設定時・明示設定時を問わず接続中 AP の channel を実効値として採用するよう変更し、設定値と実効値が分かるログを追加
 
 ## 1.1.0
 - (EN) Added `EspNowSerial` and `EspNowSerialPort` as a Serial over ESP-NOW layer built on top of `EspNowBus`, with `Stream` / `Print` compatible APIs, fixed session slots, stable session indices, and session binding helpers such as `bind(mac)`, `bindSession(index)`, and `bindFirstAvailable()`
