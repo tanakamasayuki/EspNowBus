@@ -1,6 +1,6 @@
 # IP サンプル
 
-`EspNowIP` 向けに予定しているサンプル一式です。
+`EspNowIP` 向けサンプル一式です。
 
 ## サンプル一覧
 
@@ -8,10 +8,11 @@
 - [`02_GatewayWiFiSTA`](02_GatewayWiFiSTA): uplink に Wi-Fi STA を使う gateway 側サンプル。主に bring-up や試験向けの想定です。
 - [`03_GatewayW5500Ethernet`](03_GatewayW5500Ethernet): uplink に W5500 Ethernet を使う gateway 側サンプル。有線 uplink を使う実運用寄りの構成を想定しています。
 - [`04_GatewayPPPSerial`](04_GatewayPPPSerial): 物理 UART の PPP を使って PC と uplink を張る gateway 側サンプル。USB Serial 接続の host を uplink にする構成を想定しています。
+- [`05_DeviceConnectivityCheck`](05_DeviceConnectivityCheck): `gateway ping`、DNS、NTP、HTTP をまとめて確認する device 側疎通診断サンプルです。
 
 ## 補足
 
-- これらは `EspNowIP` API 実装前提の雛形であり、現時点ではビルドできない場合があります。
+- 現在のサンプルはビルドできますが、`EspNowIP` の data plane や uplink NAT はまだ最小実装です。
 - device 側サンプルは、gateway が `EspNowBus` で募集し、その結果得られた `Bus session` に対して `EspNowIP` が `IP session` を試す前提です。
 
 ## uplink の選び方

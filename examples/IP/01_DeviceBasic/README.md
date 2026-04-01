@@ -1,6 +1,6 @@
 # 01_DeviceBasic
 
-Minimal planned device-side `EspNowIP` example.
+Minimal device-side `EspNowIP` example.
 
 ## What It Shows
 
@@ -11,7 +11,7 @@ Minimal planned device-side `EspNowIP` example.
 
 ## Intended Use
 
-Use this as the first device-side smoke test once `EspNowIP` exists.
+Use this as the first smoke test for device-side `Bus session -> IP session` establishment and lease application.
 
 ## Notes
 

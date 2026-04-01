@@ -2,15 +2,15 @@
 // ja: 物理 UART PPP uplink を使う gateway 側 EspNowIP サンプル予定。
 
 #include <Arduino.h>
-// #include <EspNowIP.h>
+#include <EspNowIP.h>
 
-// TODO: replace with the actual PPP / EspNowIPGateway API once implemented.
-// EspNowIPGateway gateway;
+EspNowIPGateway gateway;
 
 static HardwareSerial &pppSerial = Serial1;
 static constexpr int kPppRxPin = 16;
 static constexpr int kPppTxPin = 17;
 static constexpr uint32_t kPppBaud = 115200;
+static bool gatewayStarted = false;
 
 void setup()
 {
@@ -25,13 +25,20 @@ void setup()
   // TODO:
   // 1. Bring up PPP over the physical UART toward the host PC.
   // 2. Obtain / bind the PPP esp_netif as the uplink.
-  // 3. Start EspNowIPGateway with NAT on top of that uplink.
+  // 3. Replace nullptr below with the actual PPP esp_netif.
+  EspNowIPGateway::Config cfg;
+  cfg.groupName = "espnow-ip-demo";
+  cfg.mtu = 1420;
+  // cfg.channel = 6;                  // Optional
+  // cfg.phyRate = WIFI_PHY_RATE_1M_L; // Optional
+  cfg.uplink = nullptr; // TODO: PPP esp_netif
+  gatewayStarted = gateway.begin(cfg);
+  Serial.printf("gateway.begin -> %d\n", gatewayStarted);
 }
 
 void loop()
 {
-  // TODO:
-  // gateway.poll();
-  delay(1000);
+  if (gatewayStarted)
+    gateway.poll();
+  delay(10);
 }
-

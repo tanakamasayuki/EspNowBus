@@ -1,6 +1,6 @@
 # 01_DeviceBasic
 
-device 側 `EspNowIP` の最小構成サンプル予定です。
+device 側 `EspNowIP` の最小構成サンプルです。
 
 ## このサンプルで確認できること
 
@@ -11,7 +11,7 @@ device 側 `EspNowIP` の最小構成サンプル予定です。
 
 ## 想定用途
 
-`EspNowIP` 実装後、最初に device 側の疎通確認を行うためのベースに使います。
+最初に device 側の `Bus session -> IP session` 確立と lease 適用を確認するためのベースに使います。
 
 ## 補足
 
