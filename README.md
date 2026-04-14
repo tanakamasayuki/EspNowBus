@@ -125,6 +125,26 @@ See the Serial example set in [`examples/Serial`](examples/Serial):
 
 These examples cover direct pairing, controller/device bridging, multi-session monitoring, and bridging an external serial CLI library over ESP-NOW.
 
+## IP over EspNow
+
+This repository also includes `EspNowIP`, a lightweight IP layer built on top of `EspNowBus`.
+
+- device class: `EspNowIP`
+- gateway class: `EspNowIPGateway`
+- target model: `device -> gateway -> uplink`
+- current scope: `IPv4`, `routing + NAT`
+
+See the IP example set in [`examples/IP`](examples/IP):
+
+- [`examples/IP/01_DeviceBasic`](examples/IP/01_DeviceBasic)
+- [`examples/IP/02_DeviceConnectivityCheck`](examples/IP/02_DeviceConnectivityCheck)
+- [`examples/IP/03_GatewayWiFiSTA`](examples/IP/03_GatewayWiFiSTA)
+- [`examples/IP/04_GatewayEthernet`](examples/IP/04_GatewayEthernet)
+- [`examples/IP/05_GatewayPPPSerial`](examples/IP/05_GatewayPPPSerial)
+- [`examples/IP/06_GatewayPPPModem`](examples/IP/06_GatewayPPPModem)
+
+These examples cover device-side lease bring-up, gateway-side Wi-Fi STA / Ethernet / PPP uplinks, and end-to-end checks such as `gateway ping`, DNS, NTP, and HTTP.
+
 ### Retries, JOIN, heartbeat, duplicates
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.
 - If the flag stays set longer than `txTimeoutMs`, treat as timeout and retry (or fail) using the same message ID/sequence; `retryDelayMs` defaults to 0 (immediate retry).
