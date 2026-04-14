@@ -16,7 +16,7 @@ device 側 `EspNowIP` の最小構成サンプルです。
 ## 補足
 
 - `EspNowBus` は既定では `groupName` から channel を自動設定します。通常はこの既定のまま使い、環境によって必要な場合のみ全端末で同じ channel を明示設定します。
-- `02_GatewayWiFiSTA` と組み合わせて使う場合は、gateway 側が表示する STA channel に device 側 `EspNowBus` channel を合わせる必要があります。
+- `03_GatewayWiFiSTA` と組み合わせて使う場合は、gateway 側が表示する STA channel に device 側 `EspNowBus` channel を合わせる必要があります。
 - 設定例（通常はコメントアウトのままで使う想定）:
 
 ```cpp

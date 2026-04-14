@@ -1,12 +1,12 @@
-// en: Planned gateway-side EspNowIP example using physical UART PPP uplink.
-// ja: 物理 UART PPP uplink を使う gateway 側 EspNowIP サンプル予定。
+// en: Gateway-side EspNowIP example using physical UART PPP uplink.
+// ja: 物理 UART PPP uplink を使う gateway 側 EspNowIP サンプル。
 
 #include <Arduino.h>
 #include <EspNowIP.h>
-#include <EspNowPPPoS.h>
+#include "PPPoSNetif.h"
 
 EspNowIPGateway gateway;
-EspNowPPPoS pppos;
+PPPoSNetif pppos;
 static bool gatewayStarted = false;
 static uint32_t lastInfoMs = 0;
 
@@ -52,8 +52,8 @@ void setup()
   if (pppIo && debugOut == pppIo)
     debugOut = nullptr;
 
-  logLine("04_GatewayPPPSerial");
-  logLine("Physical UART PPP EspNowIP gateway scaffold.");
+  logLine("05_GatewayPPPSerial");
+  logLine("Physical UART PPP EspNowIP gateway example.");
   logLine("Target topology: ESP32 UART <-> host PC PPP peer.");
 
   if (!pppIo)
@@ -67,7 +67,7 @@ void setup()
   }
   else
   {
-    EspNowPPPoS::Config pppCfg;
+    PPPoSNetif::Config pppCfg;
     pppCfg.logger = kEnablePppLogs ? debugOut : nullptr;
     if (!pppos.begin(*pppIo, pppCfg))
       logLine("pppos.begin failed");

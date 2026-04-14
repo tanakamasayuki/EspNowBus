@@ -5,14 +5,14 @@
 #include <esp_netif_net_stack.h>
 
 #if !CONFIG_LWIP_PPP_SUPPORT
-#error "EspNowPPPoS requires CONFIG_LWIP_PPP_SUPPORT"
+#error "This example requires CONFIG_LWIP_PPP_SUPPORT"
 #endif
 
 #include <lwip/netif.h>
 #include <netif/ppp/pppapi.h>
 #include <netif/ppp/pppos.h>
 
-class EspNowPPPoS
+class PPPoSNetif
 {
 public:
     struct Config
@@ -22,7 +22,7 @@ public:
         Print *logger = nullptr;
     };
 
-    EspNowPPPoS() = default;
+    PPPoSNetif() = default;
 
     bool begin(Stream &io);
     bool begin(Stream &io, const Config &cfg);

@@ -1,10 +1,10 @@
-# 02_GatewayWiFiSTA
+# 03_GatewayWiFiSTA
 
-Planned gateway-side `EspNowIP` example using Wi-Fi STA as the uplink.
+Gateway-side `EspNowIP` example using Wi-Fi STA as the uplink.
 
 ## What It Shows
 
-- Planned `EspNowIPGateway` initialization
+- `EspNowIPGateway` initialization
 - Wi-Fi STA uplink preparation
 - The baseline `routing + IPv4 NAT` gateway structure
 - Printing the STA channel used by the uplink
@@ -18,7 +18,7 @@ Planned gateway-side `EspNowIP` example using Wi-Fi STA as the uplink.
 
 ## Intended Use
 
-Use this as a development and bring-up scaffold for early `EspNowIP` testing.
+Use this as a development and validation example for the Wi-Fi STA uplink path.
 
 ## Test Procedure
 

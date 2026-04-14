@@ -1,13 +1,13 @@
-#include "EspNowPPPoS.h"
+#include "PPPoSNetif.h"
 
 #include <stdarg.h>
 
-bool EspNowPPPoS::begin(Stream &io)
+bool PPPoSNetif::begin(Stream &io)
 {
     return begin(io, Config{});
 }
 
-bool EspNowPPPoS::begin(Stream &io, const Config &cfg)
+bool PPPoSNetif::begin(Stream &io, const Config &cfg)
 {
     end();
     io_ = &io;
@@ -37,7 +37,7 @@ bool EspNowPPPoS::begin(Stream &io, const Config &cfg)
         return false;
     }
 
-    pcb_ = pppapi_pppos_create(lwipNetif_, &EspNowPPPoS::outputCallback, &EspNowPPPoS::statusCallback, this);
+    pcb_ = pppapi_pppos_create(lwipNetif_, &PPPoSNetif::outputCallback, &PPPoSNetif::statusCallback, this);
     if (!pcb_)
     {
         end();
@@ -59,11 +59,11 @@ bool EspNowPPPoS::begin(Stream &io, const Config &cfg)
 
     started_ = true;
     connected_ = false;
-    logf("[EspNowPPPoS] started rxBuffer=%u", static_cast<unsigned>(config_.rxBufferSize));
+    logf("[PPPoSNetif] started rxBuffer=%u", static_cast<unsigned>(config_.rxBufferSize));
     return true;
 }
 
-void EspNowPPPoS::end()
+void PPPoSNetif::end()
 {
     if (pcb_)
     {
@@ -91,7 +91,7 @@ void EspNowPPPoS::end()
     connected_ = false;
 }
 
-void EspNowPPPoS::poll()
+void PPPoSNetif::poll()
 {
     if (!started_ || !pcb_ || !io_ || !rxBuffer_)
         return;
@@ -109,25 +109,25 @@ void EspNowPPPoS::poll()
         pppos_input_tcpip(pcb_, rxBuffer_, rxLen);
 }
 
-bool EspNowPPPoS::started() const
+bool PPPoSNetif::started() const
 {
     return started_;
 }
 
-bool EspNowPPPoS::connected() const
+bool PPPoSNetif::connected() const
 {
     return connected_;
 }
 
-esp_netif_t *EspNowPPPoS::netif() const
+esp_netif_t *PPPoSNetif::netif() const
 {
     return netif_;
 }
 
-u32_t EspNowPPPoS::outputCallback(ppp_pcb *pcb, const void *data, u32_t len, void *ctx)
+u32_t PPPoSNetif::outputCallback(ppp_pcb *pcb, const void *data, u32_t len, void *ctx)
 {
     (void)pcb;
-    EspNowPPPoS *self = static_cast<EspNowPPPoS *>(ctx);
+    PPPoSNetif *self = static_cast<PPPoSNetif *>(ctx);
     if (!self || !self->io_ || !data || len == 0)
         return 0;
 
@@ -136,26 +136,26 @@ u32_t EspNowPPPoS::outputCallback(ppp_pcb *pcb, const void *data, u32_t len, voi
     return static_cast<u32_t>(written);
 }
 
-void EspNowPPPoS::statusCallback(ppp_pcb *pcb, int errCode, void *ctx)
+void PPPoSNetif::statusCallback(ppp_pcb *pcb, int errCode, void *ctx)
 {
     (void)pcb;
-    EspNowPPPoS *self = static_cast<EspNowPPPoS *>(ctx);
+    PPPoSNetif *self = static_cast<PPPoSNetif *>(ctx);
     if (!self)
         return;
 
     if (errCode == PPPERR_NONE)
     {
         self->connected_ = true;
-        self->logf("[EspNowPPPoS] connected");
+        self->logf("[PPPoSNetif] connected");
     }
     else
     {
         self->connected_ = false;
-        self->logf("[EspNowPPPoS] status err=%d", errCode);
+        self->logf("[PPPoSNetif] status err=%d", errCode);
     }
 }
 
-void EspNowPPPoS::logf(const char *fmt, ...) const
+void PPPoSNetif::logf(const char *fmt, ...) const
 {
     if (!config_.logger || !fmt)
         return;

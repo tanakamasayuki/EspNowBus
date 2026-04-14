@@ -1,5 +1,5 @@
-// en: Planned minimal device-side EspNowIP example.
-// ja: device 側 EspNowIP の最小構成サンプル予定。
+// en: Minimal device-side EspNowIP example.
+// ja: device 側 EspNowIP の最小構成サンプル。
 
 #include <Arduino.h>
 #include <EspNowIP.h>
@@ -37,7 +37,7 @@ void setup()
   delay(200);
 
   Serial.println("01_DeviceBasic");
-  Serial.println("This is a scaffold for the planned EspNowIP device example.");
+  Serial.println("Minimal EspNowIP device example.");
 
   EspNowIP::Config cfg;
   cfg.groupName = "espnow-ip-demo";

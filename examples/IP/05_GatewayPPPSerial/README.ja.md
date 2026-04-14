@@ -1,4 +1,4 @@
-# 04_GatewayPPPSerial
+# 05_GatewayPPPSerial
 
 物理 UART PPP を uplink に使う gateway 側 `EspNowIP` サンプルです。
 
@@ -12,14 +12,14 @@
 
 Wi-Fi uplink を使わない、または使いにくい環境での代替 gateway サンプルとして使います。
 
-## 現在の方針
+## 補足
 
 - 目標トポロジーは `ESP32 UART <-> host PC PPP peer`
 - `PPP.h` は AT モデム前提のため、この用途では使いません
 - `ESP_NETIF_DEFAULT_PPP()` で `esp_netif PPP` を作り、`pppapi_pppos_create()` で `ppp_pcb` を張る方針です
 - UART 受信データを `pppos_input_tcpip()` に流し、送信は PPPoS の output callback から UART に書き戻します
-- その結果得られた `esp_netif_t*` を `cfg.uplink` に渡せば、その先の NAT / routing は他の gateway と共通です
-- 任意の初期化済み `Stream` を受ける `EspNowPPPoS` ヘルパーを使います
+- その結果得られた `esp_netif_t*` を `cfg.uplink` に渡せば、その先の NAT / routing は Wi-Fi STA や Ethernet uplink と同じです
+- このサンプル配下のローカル `PPPoSNetif` ヘルパーが、任意の初期化済み `Stream` を受けます
 - シリアル初期化はユーザー側責務です
 - ログは `Config.logger = nullptr` で無効、`Print*` を渡せば有効です
 - `pppIo` と `debugOut` に同じ `Stream` を指定した場合は、PPP データと混線しないようにログを自動で無効化します

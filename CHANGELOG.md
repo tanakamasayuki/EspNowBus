@@ -3,8 +3,8 @@
 ## Unreleased
 - (EN) Added `EspNowIP` and `EspNowIPGateway` as an IPv4-over-ESP-NOW layer on top of `EspNowBus`, including `esp_netif` integration, a minimal `Hello` / `Lease` control plane, `IpData` transport, lease application on the device side, and gateway-side IPv4 NAT over an uplink `esp_netif`
 - (JA) `EspNowBus` 上の IPv4-over-ESP-NOW 層として `EspNowIP` と `EspNowIPGateway` を追加し、`esp_netif` 連携、最小の `Hello` / `Lease` control plane、`IpData` transport、device 側 lease 適用、gateway 側 uplink `esp_netif` に対する IPv4 NAT を実装
-- (EN) Added `EspNowPPPoS` as a raw `lwIP PPPoS` helper that accepts an already-initialized `Stream`, exposes a PPP `esp_netif`, leaves serial initialization to the user, and supports optional silent logging
-- (JA) 初期化済み `Stream` を受け取る raw `lwIP PPPoS` ヘルパーとして `EspNowPPPoS` を追加し、PPP `esp_netif` の公開、シリアル初期化のユーザー責務化、任意の silent logging をサポート
+- (EN) Added a raw `lwIP PPPoS` helper to the PPP gateway example so an already-initialized `Stream` can be used to build a PPP `esp_netif` without making PPPoS part of the core library API
+- (JA) PPP gateway サンプル側に raw `lwIP PPPoS` ヘルパーを追加し、初期化済み `Stream` から PPP `esp_netif` を構築できるようにしつつ、PPPoS をライブラリ本体 API には含めない構成にした
 - (EN) Added and validated `examples/IP`, including device bring-up, Wi-Fi STA gateway, Ethernet gateway, PPP gateway scaffold, and a connectivity check example that verifies gateway ping, DNS, internet ping, NTP, and HTTP
 - (JA) `examples/IP` を追加し、device bring-up、Wi-Fi STA gateway、Ethernet gateway、PPP gateway scaffold、gateway ping / DNS / internet ping / NTP / HTTP を確認する connectivity check サンプルを整備
 - (EN) Added IP documentation: `SPEC.ip.ja.md`, `SPEC.ip.md`, related README links, and example READMEs for the new IP examples

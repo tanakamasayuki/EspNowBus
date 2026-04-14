@@ -14,15 +14,15 @@
 
 namespace
 {
-constexpr const char *kGroupName = "espnow-ip-demo";
-constexpr uint16_t kMtu = 1420;
-constexpr uint32_t kRunIntervalMs = 30000;
-constexpr uint32_t kPingTaskStackSize = 4096;
-constexpr int kNtpRetries = 3;
-constexpr const char *kDnsHost = "example.com";
-constexpr const char *kNtpHost = "pool.ntp.org";
-constexpr uint16_t kNtpPort = 123;
-constexpr const char *kHttpUrl = "http://example.com/";
+  constexpr const char *kGroupName = "espnow-ip-demo";
+  constexpr uint16_t kMtu = 1420;
+  constexpr uint32_t kRunIntervalMs = 30000;
+  constexpr uint32_t kPingTaskStackSize = 4096;
+  constexpr int kNtpRetries = 3;
+  constexpr const char *kDnsHost = "example.com";
+  constexpr const char *kNtpHost = "pool.ntp.org";
+  constexpr uint16_t kNtpPort = 123;
+  constexpr const char *kHttpUrl = "http://example.com/";
 } // namespace
 
 struct PingResult
@@ -334,7 +334,7 @@ void setup()
   Serial.begin(115200);
   delay(200);
 
-  Serial.println("05_DeviceConnectivityCheck");
+  Serial.println("02_DeviceConnectivityCheck");
   Serial.printf("groupName=%s mtu=%u\n", kGroupName, kMtu);
   printSelfInfo();
   Serial.println();

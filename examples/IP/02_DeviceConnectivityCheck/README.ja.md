@@ -1,4 +1,4 @@
-# 05_DeviceConnectivityCheck
+# 02_DeviceConnectivityCheck
 
 `EspNowIP` の疎通診断をまとめて行う device 側サンプルです。
 

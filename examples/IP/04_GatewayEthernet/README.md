@@ -1,8 +1,8 @@
-# 03_GatewayEthernet
+# 04_GatewayEthernet
 
 Gateway-side `EspNowIP` example for a wired Ethernet uplink.
 
-The current reference candidate is `LilyGo T-Internet-COM`. This scaffold assumes `ETH.h` with `LAN8720 RMII`.
+The current reference candidate is `LilyGo T-Internet-COM`. This example assumes `ETH.h` with `LAN8720 RMII`.
 
 ## What It Shows
 
@@ -14,7 +14,7 @@ The current reference candidate is `LilyGo T-Internet-COM`. This scaffold assume
 
 Use this as a more deployment-friendly gateway example when a wired Ethernet uplink is available.
 
-## Current Direction
+## Notes
 
 - The current reference candidate is `T-Internet-COM`
 - The sketch uses Arduino ESP32 `ETH.h` instead of `M5_Ethernet.h`

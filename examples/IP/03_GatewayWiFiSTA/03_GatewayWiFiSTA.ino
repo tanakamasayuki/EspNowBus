@@ -1,5 +1,5 @@
-// en: Planned gateway-side EspNowIP example using Wi-Fi STA uplink.
-// ja: Wi-Fi STA uplink を使う gateway 側 EspNowIP サンプル予定。
+// en: Gateway-side EspNowIP example using Wi-Fi STA uplink.
+// ja: Wi-Fi STA uplink を使う gateway 側 EspNowIP サンプル。
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -83,7 +83,7 @@ void setup()
   Serial.begin(115200);
   delay(200);
 
-  Serial.println("02_GatewayWiFiSTA");
+  Serial.println("03_GatewayWiFiSTA");
   Serial.println("EspNowIP Wi-Fi STA gateway example.");
 
   WiFi.mode(WIFI_STA);

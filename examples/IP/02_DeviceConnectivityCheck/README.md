@@ -1,4 +1,4 @@
-# 05_DeviceConnectivityCheck
+# 02_DeviceConnectivityCheck
 
 Device-side connectivity diagnostics example for `EspNowIP`.
 

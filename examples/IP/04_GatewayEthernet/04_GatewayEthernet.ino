@@ -1,5 +1,5 @@
-// en: Planned gateway-side EspNowIP example using wired Ethernet uplink.
-// ja: 有線 Ethernet uplink を使う gateway 側 EspNowIP サンプル予定。
+// en: Gateway-side EspNowIP example using wired Ethernet uplink.
+// ja: 有線 Ethernet uplink を使う gateway 側 EspNowIP サンプル。
 
 #include <Arduino.h>
 #include <EspNowIP.h>
@@ -63,8 +63,8 @@ void setup()
   Serial.begin(115200);
   delay(200);
 
-  Serial.println("03_GatewayEthernet");
-  Serial.println("Scaffold for a wired Ethernet EspNowIP gateway.");
+  Serial.println("04_GatewayEthernet");
+  Serial.println("Wired Ethernet EspNowIP gateway example.");
   Serial.println("Current reference target: LilyGo T-Internet-COM (LAN8720 via ETH.h).");
 
   Network.onEvent(onNetworkEvent);

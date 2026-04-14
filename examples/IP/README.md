@@ -5,14 +5,14 @@
 ## Examples
 
 - [`01_DeviceBasic`](01_DeviceBasic): Minimal device-side `EspNowIP` setup. Brings up the virtual IP interface, prints link / lease state, and acts as the base for later device examples.
-- [`02_GatewayWiFiSTA`](02_GatewayWiFiSTA): Gateway-side example using Wi-Fi STA as the uplink. Intended mainly for bring-up and testing.
-- [`03_GatewayEthernet`](03_GatewayEthernet): Gateway-side example using wired Ethernet as the uplink. The current reference candidate is `LilyGo T-Internet-COM`.
-- [`04_GatewayPPPSerial`](04_GatewayPPPSerial): Gateway-side example using a physical UART PPP link to a PC as the uplink. Intended as an alternative to Wi-Fi uplink when the host is connected over USB serial.
-- [`05_DeviceConnectivityCheck`](05_DeviceConnectivityCheck): Device-side connectivity diagnostics covering `gateway ping`, DNS, NTP, and HTTP.
+- [`02_DeviceConnectivityCheck`](02_DeviceConnectivityCheck): Device-side connectivity diagnostics covering `gateway ping`, DNS, NTP, and HTTP.
+- [`03_GatewayWiFiSTA`](03_GatewayWiFiSTA): Gateway-side example using Wi-Fi STA as the uplink. Intended mainly for testing and validation.
+- [`04_GatewayEthernet`](04_GatewayEthernet): Gateway-side example using wired Ethernet as the uplink. The current reference candidate is `LilyGo T-Internet-COM`.
+- [`05_GatewayPPPSerial`](05_GatewayPPPSerial): Gateway-side example using a physical UART PPP link to a PC as the uplink. Intended as an alternative to Wi-Fi uplink when the host is connected over USB serial.
 
 ## Notes
 
-- These examples build today, but the `EspNowIP` data plane and uplink NAT are still only minimally implemented.
+- These examples build today, and the Wi-Fi STA and Ethernet uplink paths are validated as PoC implementations.
 - Device-side examples assume the gateway advertises through `EspNowBus`, then `EspNowIP` tries `IP session` establishment on the resulting `Bus session`.
 
 ## Choosing an Uplink
