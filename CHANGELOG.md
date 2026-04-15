@@ -1,14 +1,12 @@
 # Changelog / 変更履歴
 
 ## Unreleased
-- (EN) Added `EspNowIP` and `EspNowIPGateway` as an IPv4-over-ESP-NOW layer on top of `EspNowBus`, including `esp_netif` integration, a minimal `Hello` / `Lease` control plane, `IpData` transport, lease application on the device side, and gateway-side IPv4 NAT over an uplink `esp_netif`
-- (JA) `EspNowBus` 上の IPv4-over-ESP-NOW 層として `EspNowIP` と `EspNowIPGateway` を追加し、`esp_netif` 連携、最小の `Hello` / `Lease` control plane、`IpData` transport、device 側 lease 適用、gateway 側 uplink `esp_netif` に対する IPv4 NAT を実装
-- (EN) Added a raw `lwIP PPPoS` helper to the PPP gateway example so an already-initialized `Stream` can be used to build a PPP `esp_netif` without making PPPoS part of the core library API
-- (JA) PPP gateway サンプル側に raw `lwIP PPPoS` ヘルパーを追加し、初期化済み `Stream` から PPP `esp_netif` を構築できるようにしつつ、PPPoS をライブラリ本体 API には含めない構成にした
-- (EN) Added and validated `examples/IP`, including device bring-up, Wi-Fi STA gateway, Ethernet gateway, PPP gateway scaffold, and a connectivity check example that verifies gateway ping, DNS, internet ping, NTP, and HTTP
-- (JA) `examples/IP` を追加し、device bring-up、Wi-Fi STA gateway、Ethernet gateway、PPP gateway scaffold、gateway ping / DNS / internet ping / NTP / HTTP を確認する connectivity check サンプルを整備
-- (EN) Added IP documentation: `SPEC.ip.ja.md`, `SPEC.ip.md`, related README links, and example READMEs for the new IP examples
-- (JA) `SPEC.ip.ja.md`、`SPEC.ip.md`、README からの導線、各 IP example の README など、IP 向けドキュメントを追加
+- (EN) Added `EspNowIP` and `EspNowIPGateway` as an IPv4-over-ESP-NOW layer on top of `EspNowBus`, including `esp_netif` integration, a minimal `Hello` / `Lease` control plane, `IpData` transport, device-side lease application, and gateway-side `routing + NAT` over an uplink `esp_netif`
+- (JA) `EspNowBus` 上の IPv4-over-ESP-NOW 層として `EspNowIP` と `EspNowIPGateway` を追加し、`esp_netif` 連携、最小の `Hello` / `Lease` control plane、`IpData` transport、device 側 lease 適用、gateway 側 uplink `esp_netif` に対する `routing + NAT` を実装
+- (EN) Added the `examples/IP` example set, covering device bring-up, connectivity checks, Wi-Fi STA and Ethernet gateways validated as PoC uplinks, a raw `lwIP PPPoS` gateway helper kept at the example layer, and a `PPP.h`-based cellular modem gateway example
+- (JA) `examples/IP` サンプル群を追加し、device bring-up、connectivity check、PoC 確認済みの Wi-Fi STA / Ethernet gateway、example 層に置いた raw `lwIP PPPoS` helper、`PPP.h` ベースのセルラーモデム gateway 例を整備
+- (EN) Added IP-specific documentation, including `SPEC.ip.ja.md`, `SPEC.ip.md`, root README updates, and per-example README files for the IP examples
+- (JA) `SPEC.ip.ja.md`、`SPEC.ip.md`、ルート README の IP 説明、各 IP example の README など、IP 向けドキュメントを追加・整理
 - (EN) Improved `EspNowBus` channel selection so a connected Wi-Fi STA channel becomes the effective ESP-NOW channel, even when auto-channel or an explicit channel was configured, and added clearer configured/effective channel logs
 - (JA) `EspNowBus` の channel 選択を改善し、Wi-Fi STA 接続中は auto 設定時・明示設定時を問わず接続中 AP の channel を実効値として採用するよう変更し、設定値と実効値が分かるログを追加
 
