@@ -28,6 +28,18 @@
 - When the uplink is integrated through `esp_netif`, socket, DNS, routing, and NAT handling can share the same path. The tradeoff is extra copies and control overhead because packets pass through the ESP32-side `lwIP` stack.
 - By contrast, using a modem or communication chip's own built-in IP stack can reduce ESP32 load, but those chip-local stacks are often not exposed as `esp_netif`, which makes them a poor fit for an `EspNowIPGateway` design that wants to connect multiple interfaces through a common IP stack.
 
+## Constraints and Operational Notes
+
+- The `EspNowIP` topology is a star: `device -> gateway -> uplink`. The gateway advertises through `EspNowBus`, and the device establishes an `IP session` on top of the resulting `Bus session`.
+- A device can normally reach only the gateway itself and the network behind the gateway uplink. Device-to-device IP forwarding is not provided.
+- Multiple gateways can exist in the same environment, but the selected gateway is not fixed. The device tries to establish an `IP session` on available `Bus session` candidates and uses the first one that succeeds.
+- When connectivity to the active gateway is lost, the `EspNowBus` timeout / auto-purge path tears down the current `IP session`, and the device reconnects using whatever gateway candidates are available at that time.
+- This means multiple gateways can provide redundancy, but the reconnect target is not guaranteed. It is a disconnect-and-reconnect model, not a seamless failover model.
+- `EspNowBus` already performs retransmission and app-ack handling, and `TCP` adds its own handshake and retransmission behavior on top. As a result, `TCP` carries noticeable overhead. This is acceptable for low-rate reconnect-friendly traffic such as `HTTP` or `MQTT`, but it is not a good fit for low-latency or throughput-sensitive workloads.
+- Heavy debug logging, especially over a serial console, reduces practical throughput significantly. The example logging is tuned for debugging and is not intended as a production default.
+- The current implementation is primarily a configuration example and PoC. Basic Wi-Fi STA and Ethernet uplink paths are validated, but throughput tuning, long-duration operation, detailed failover behavior, and full fragmentation / reassembly validation are still limited.
+- In practice, treat the current examples and default settings as proof that the architecture works, then adjust logging, reconnect behavior, and traffic expectations before using the design in a real deployment.
+
 ## Choosing an Uplink
 
 - Gateway uplinks are selected on the assumption that they can be exposed as an `esp_netif`.

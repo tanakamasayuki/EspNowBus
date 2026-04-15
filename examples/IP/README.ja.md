@@ -28,6 +28,18 @@
 - uplink が `esp_netif` で統合されていれば、socket、DNS、routing、NAT の経路を共通化できます。一方で、各 uplink の packet は ESP32 上の `lwIP` を通るため、コピーや制御処理のオーバーヘッドは増えます。
 - 逆に、モデムや通信チップの独自 IP スタックを直接使えば ESP32 の負荷は下がることがありますが、その場合は `esp_netif` として統合されないことが多く、`EspNowIPGateway` のように複数 IF を同じ IP スタックでつなぐ構成には向きません。
 
+## 制約と運用上の注意
+
+- `EspNowIP` のネットワーク形状は `device -> gateway -> uplink` のスター型です。gateway が `EspNowBus` で募集し、device はその結果できた `Bus session` の上で `IP session` を張ります。
+- device が到達できる先は、基本的に gateway 自身と gateway の先にある uplink 側ネットワークです。device 間の IP 転送は行いません。
+- 複数 gateway を同じ環境に置くことはできますが、どの gateway に接続されるかは固定ではありません。device は利用可能な `Bus session` に対して順に `IP session` を試し、先に成立した gateway を使います。
+- active gateway の接続性が失われると、`EspNowBus` の timeout / auto purge を契機に `IP session` を破棄し、再び利用可能な gateway 候補を探して再接続します。再接続先は、ちょうどその時点で見えている募集や `Bus session` の状態に依存します。
+- そのため、複数 gateway を置くことで冗長化はできますが、どちらに再接続するかは保証されません。無停止切替ではなく、いったん切れてから再接続する前提です。
+- `EspNowBus` 側でも再送と app-ack を行い、その上で `TCP` も再送や handshake を行うため、`TCP` はオーバーヘッドが大きくなります。`HTTP` や `MQTT` のような低速で再接続前提の用途には向きますが、低遅延や高スループットを求める用途には向きません。
+- デバッグログを多く出すと、特にシリアル出力がボトルネックになり、実効スループットが大きく落ちます。サンプルのログ量は切り分けを優先しているため、そのまま実運用に使う前提ではありません。
+- 現在の実装は `EspNowIP` の構成例と PoC を示すことを主目的としています。Wi-Fi STA と Ethernet uplink の基本疎通は確認済みですが、スループット最適化、長時間運転、failover の詳細、fragmentation / reassembly の本格検証はまだ十分ではありません。
+- そのため、現状のサンプルや既定設定は「この構成で IP 通信が成立する」ことを示すためのものであり、そのまま実運用に投入するより、用途に合わせたログ削減、再接続設計、トラフィック量の見積もりを行った上で使う前提です。
+
 ## uplink の選び方
 
 - gateway 側 uplink は、`esp_netif` として扱えることを前提に選びます。
