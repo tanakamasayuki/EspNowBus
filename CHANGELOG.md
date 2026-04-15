@@ -1,6 +1,8 @@
 # Changelog / 変更履歴
 
 ## Unreleased
+
+## 1.2.0
 - (EN) Added `EspNowIP` and `EspNowIPGateway` as an IPv4-over-ESP-NOW layer on top of `EspNowBus`, including `esp_netif` integration, a minimal `Hello` / `Lease` control plane, `IpData` transport, device-side lease application, and gateway-side `routing + NAT` over an uplink `esp_netif`
 - (JA) `EspNowBus` 上の IPv4-over-ESP-NOW 層として `EspNowIP` と `EspNowIPGateway` を追加し、`esp_netif` 連携、最小の `Hello` / `Lease` control plane、`IpData` transport、device 側 lease 適用、gateway 側 uplink `esp_netif` に対する `routing + NAT` を実装
 - (EN) Added the `examples/IP` example set, covering device bring-up, connectivity checks, Wi-Fi STA and Ethernet gateways validated as PoC uplinks, a raw `lwIP PPPoS` gateway helper kept at the example layer, and a `PPP.h`-based cellular modem gateway example
