@@ -11,6 +11,7 @@ Lightweight, group-oriented ESP-NOW message bus for ESP32 and Arduino sketches. 
 - Deterministic sending: outbound messages are queued and sent one at a time by a FreeRTOS task.
 - Heartbeat-driven liveness: periodic unicast heartbeat (Ping/Pong) and automatic re-JOIN when peers go quiet.
 - Optional Serial layer: `EspNowSerial` and `EspNowSerialPort` provide a `Stream` / `Print` style serial abstraction on top of `EspNowBus`.
+- Optional IP layer: `EspNowIP` and `EspNowIPGateway` add an `esp_netif`-based `IPv4` / `routing + NAT` model on top of `EspNowBus`.
 
 ## Concepts
 - **Group name → keys/IDs**: A `groupName` derives `groupSecret`, `groupId`, `keyAuth` (join auth), and `keyBcast` (broadcast auth).
@@ -133,6 +134,15 @@ This repository also includes `EspNowIP`, a lightweight IP layer built on top of
 - gateway class: `EspNowIPGateway`
 - target model: `device -> gateway -> uplink`
 - current scope: `IPv4`, `routing + NAT`
+- implementation model: a virtual device-side `esp_netif` plus a gateway that connects bus-side and uplink-side `esp_netif` instances as an `L3 gateway`
+
+### IP Model
+- `EspNowIP` establishes an `IP session` on top of `EspNowBus`, and on the device side it is exposed to `lwIP` as a normal virtual network interface.
+- The gateway is not an `L2 bridge`. It behaves as an `L3 gateway`, with the bus side as the inside interface and the uplink side as the outside interface for `routing + NAT`.
+- A device can normally reach only the gateway itself and the network behind the gateway uplink. Device-to-device IP forwarding is not provided.
+- Multiple gateways can provide redundancy, but the selected gateway is not fixed. After a disconnect, the device reconnects to whichever eligible gateway succeeds at that time. This is not seamless failover.
+- Because `TCP` runs on top of `EspNowBus` retransmission and app-ack handling, the stack carries noticeable overhead. It is better suited to reconnect-friendly traffic such as `HTTP` or `MQTT` than to low-latency or throughput-sensitive workloads.
+- The current examples and defaults are aimed at PoC validation and architecture demonstration. Throughput tuning and long-duration validation are still limited.
 
 See the IP example set in [`examples/IP`](examples/IP):
 
@@ -144,6 +154,10 @@ See the IP example set in [`examples/IP`](examples/IP):
 - [`examples/IP/06_GatewayPPPModem`](examples/IP/06_GatewayPPPModem)
 
 These examples cover device-side lease bring-up, gateway-side Wi-Fi STA / Ethernet / PPP uplinks, and end-to-end checks such as `gateway ping`, DNS, NTP, and HTTP.
+
+Related documentation:
+- IP examples README: [`examples/IP/README.md`](examples/IP/README.md)
+- IP extension spec: [`SPEC.ip.md`](SPEC.ip.md)
 
 ### Retries, JOIN, heartbeat, duplicates
 - Send task keeps a single in-flight slot with a "sending" flag. On ESP-NOW send-complete callback, it clears the flag and emits `onSendResult`.

@@ -14,6 +14,8 @@
 ## Notes
 
 - These examples build today, and the Wi-Fi STA and Ethernet uplink paths are validated as PoC implementations.
+- `05_GatewayPPPSerial` is a raw `PPPoS` uplink example. End-to-end validation against a host-side `pppd` setup is still limited.
+- `06_GatewayPPPModem` is a configuration example for cellular modems via `PPP.h`. Per-modem AT initialization details and carrier-specific behavior still need to be adjusted per target.
 - Device-side examples assume the gateway advertises through `EspNowBus`, then `EspNowIP` tries `IP session` establishment on the resulting `Bus session`.
 
 ## How IP Is Realized
