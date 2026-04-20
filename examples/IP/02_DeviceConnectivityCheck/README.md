@@ -19,3 +19,4 @@ Use this after `01_DeviceBasic` has obtained a lease, in order to check how far 
 - The intended workflow is to copy this example into `examples/IP/temp/` before editing it for local testing.
 - `gateway ping` uses `10.201.0.1`.
 - Outbound checks use `example.com`, `pool.ntp.org`, and `http://example.com/`.
+- The device side uses `cfg.autoJoinIntervalMs = 0`, so it stays silent and expects the gateway side to advertise before taking a lease.

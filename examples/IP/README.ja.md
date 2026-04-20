@@ -17,6 +17,7 @@
 - `05_GatewayPPPSerial` は raw `PPPoS` uplink の構成例で、host 側 `pppd` 環境との実機確認はまだ十分ではありません。
 - `06_GatewayPPPModem` は `PPP.h` を使うセルラーモデム向け構成例で、対象モデムごとの AT 初期化や回線条件は別途調整が必要です。
 - device 側サンプルは、gateway が `EspNowBus` で募集し、その結果得られた `Bus session` に対して `EspNowIP` が `IP session` を試す前提です。
+- そのため device 側サンプルでは `cfg.autoJoinIntervalMs = 0` とし、自分からは JOIN 募集を出さず、gateway 側の募集を受けて接続する方針です。
 
 ## どうやって IP が成立するか
 

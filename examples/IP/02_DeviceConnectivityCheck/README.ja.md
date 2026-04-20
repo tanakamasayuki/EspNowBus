@@ -19,3 +19,4 @@
 - 実験時はこのサンプルを `examples/IP/temp/` へコピーしてから編集する運用を想定しています。
 - `gateway ping` は `10.201.0.1` を使います。
 - 外向き確認は `example.com`、`pool.ntp.org`、`http://example.com/` を使います。
+- device 側は `cfg.autoJoinIntervalMs = 0` で自分からは募集せず、gateway 側の募集を受けて lease 取得する前提です。

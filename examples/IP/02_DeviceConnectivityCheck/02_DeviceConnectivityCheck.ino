@@ -342,6 +342,7 @@ void setup()
   EspNowIP::Config cfg;
   cfg.groupName = kGroupName;
   cfg.mtu = kMtu;
+  cfg.autoJoinIntervalMs = 0; // en: Do not advertise from the device side / ja: device 側は自分から募集しない
   // cfg.channel = 6;                  // Optional: fix the channel on all nodes when needed.
   // cfg.phyRate = WIFI_PHY_RATE_1M_L; // Optional: lower PHY rate example for longer range.
 

@@ -17,11 +17,13 @@ Use this as the first smoke test for device-side `Bus session -> IP session` est
 
 - `EspNowBus` chooses a channel automatically from `groupName` by default. In normal use, keep that default and only force the same channel on every node when the environment requires it.
 - When used with `03_GatewayWiFiSTA`, the device-side `EspNowBus` channel must match the STA channel shown by the gateway.
+- This example keeps the device side silent with `cfg.autoJoinIntervalMs = 0`, expecting the gateway side to advertise.
 - Example (normally left commented out):
 
 ```cpp
 // EspNowIP::Config cfg;
 // cfg.groupName = "espnow-ip-demo";
+// cfg.autoJoinIntervalMs = 0;      // Device stays silent; gateway advertises
 // cfg.channel = 6;                  // Optional
 // cfg.phyRate = WIFI_PHY_RATE_1M_L; // Optional
 ```

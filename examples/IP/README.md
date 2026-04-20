@@ -17,6 +17,7 @@
 - `05_GatewayPPPSerial` is a raw `PPPoS` uplink example. End-to-end validation against a host-side `pppd` setup is still limited.
 - `06_GatewayPPPModem` is a configuration example for cellular modems via `PPP.h`. Per-modem AT initialization details and carrier-specific behavior still need to be adjusted per target.
 - Device-side examples assume the gateway advertises through `EspNowBus`, then `EspNowIP` tries `IP session` establishment on the resulting `Bus session`.
+- For that reason, the device-side examples set `cfg.autoJoinIntervalMs = 0` so they do not advertise on their own and instead attach to gateway-side advertisements.
 
 ## How IP Is Realized
 
