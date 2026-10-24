@@ -1,3 +1,5 @@
+// en: Select a common explicit Wi-Fi channel
+// ja: 共通のWi-Fi チャンネルを明示する
 #include <EspNowBus.h>
 
 // en: Show how to set Wi-Fi channel explicitly. Default is auto (from groupName hash);
@@ -31,7 +33,9 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  // en: Group name for communication
+  // ja: 同じグループ名同士で通信可能
+  cfg.groupName = "espnow-demo_" __FILE__;
 
   // en: By default, channel is auto-picked from the groupName hash (-1).
   //     Here we request channel 0; the library clamps to the valid 1–13 range.
@@ -39,10 +43,14 @@ void setup()
   //     ここでは 0 を指定し、1〜13 にクリップされる例。
   cfg.channel = 0;
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
 
   Serial.printf("Requesting channel=%d (auto uses groupName hash)\n", cfg.channel);
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");

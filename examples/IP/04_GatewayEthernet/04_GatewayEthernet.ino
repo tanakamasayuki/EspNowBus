@@ -1,6 +1,5 @@
-// en: Gateway-side EspNowIP example using wired Ethernet uplink.
-// ja: 有線 Ethernet uplink を使う gateway 側 EspNowIP サンプル。
-
+// en: Connect a bus gateway through Ethernet
+// ja: EthernetでBus Gatewayを接続する
 #include <Arduino.h>
 #include <EspNowIP.h>
 #include <ETH.h>
@@ -68,6 +67,8 @@ void setup()
   Serial.println("Current reference target: LilyGo T-Internet-COM (LAN8720 via ETH.h).");
 
   Network.onEvent(onNetworkEvent);
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   ETH.begin(kEthType, kEthAddr, kEthMdcPin, kEthMdioPin, kEthPowerPin, kEthClockMode);
 }
 

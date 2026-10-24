@@ -1,3 +1,5 @@
+// en: Join a peer and send unicast messages
+// ja: 相手へJoinしてUnicastを送る
 #include <EspNowBus.h>
 
 // en: Join peers, then unicast with app-level ACK, choosing a random peer.
@@ -21,10 +23,16 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  // en: Group name for communication
+  // ja: 同じグループ名同士で通信可能
+  cfg.groupName = "espnow-demo_" __FILE__;
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");

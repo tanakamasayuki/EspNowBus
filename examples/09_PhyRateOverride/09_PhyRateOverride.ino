@@ -1,3 +1,5 @@
+// en: Choose the physical radio rate
+// ja: 無線のPHY Rateを指定する
 #include <EspNowBus.h>
 #include <esp_wifi.h>
 
@@ -39,16 +41,22 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  // en: Group name for communication
+  // ja: 同じグループ名同士で通信可能
+  cfg.groupName = "espnow-demo_" __FILE__;
 
   // en: Default ESP-NOW rate is WIFI_PHY_RATE_24M; set to low-rate WIFI_PHY_RATE_1M_L for better range.
   // ja: 既定の WIFI_PHY_RATE_24M から、遠距離に強い WIFI_PHY_RATE_1M_L へ変更。
   cfg.phyRate = WIFI_PHY_RATE_1M_L;
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
 
   Serial.printf("Requesting phyRate=%s (%d)\n", rateName(cfg.phyRate), static_cast<int>(cfg.phyRate));
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");

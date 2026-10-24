@@ -1,3 +1,5 @@
+// en: Observe automatic peer removal
+// ja: 相手の自動削除を確認する
 #include <EspNowBus.h>
 
 // en: Demonstrate JOIN callbacks and send status handling (auto-purge removed).
@@ -37,14 +39,22 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
-  cfg.heartbeatIntervalMs = 5000;          // en: Heartbeat interval in milliseconds(10s->5s) / ja: ハートビート間隔ミリ秒(10秒->5秒)
+  // en: Group name for communication
+  // ja: 同じグループ名同士で通信可能
+  cfg.groupName = "espnow-demo_" __FILE__;
+  // en: Heartbeat interval in milliseconds(10s->5s)
+  // ja: ハートビート間隔ミリ秒(10秒->5秒)
+  cfg.heartbeatIntervalMs = 5000;
   // en: ping cadence; 2x -> targeted join, 3x -> drop
   // ja: ping の間隔; 2x でターゲットJOINチャレンジ、3x でピア解消
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
   bus.onJoinEvent(onJoinEventCb);
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");

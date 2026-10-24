@@ -1,6 +1,5 @@
-// en: Device-side connectivity diagnostics for EspNowIP.
-// ja: EspNowIP の疎通診断を行う device 側サンプル。
-
+// en: Inspect device-side IP connectivity
+// ja: Device側のIP疎通を確認する
 #include <Arduino.h>
 #include <EspNowIP.h>
 #include <HTTPClient.h>
@@ -168,6 +167,8 @@ static bool runNtpTest()
   for (int attempt = 1; attempt <= kNtpRetries; ++attempt)
   {
     NetworkUDP udp;
+    // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+    // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
     if (!udp.begin(0))
     {
       Serial.printf("[FAIL] NTP UDP begin attempt=%d\n", attempt);
@@ -342,7 +343,9 @@ void setup()
   EspNowIP::Config cfg;
   cfg.groupName = kGroupName;
   cfg.mtu = kMtu;
-  cfg.autoJoinIntervalMs = 0; // en: Do not advertise from the device side / ja: device 側は自分から募集しない
+  // en: Do not advertise from the device side
+  // ja: device 側は自分から募集しない
+  cfg.autoJoinIntervalMs = 0;
   // cfg.channel = 6;                  // Optional: fix the channel on all nodes when needed.
   // cfg.phyRate = WIFI_PHY_RATE_1M_L; // Optional: lower PHY rate example for longer range.
 

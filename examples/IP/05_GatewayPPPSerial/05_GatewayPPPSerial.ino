@@ -1,6 +1,5 @@
-// en: Gateway-side EspNowIP example using physical UART PPP uplink.
-// ja: 物理 UART PPP uplink を使う gateway 側 EspNowIP サンプル。
-
+// en: Use a serial PPP gateway endpoint
+// ja: シリアル PPPのGateway Endpointを使う
 #include <Arduino.h>
 #include <EspNowIP.h>
 #include "PPPoSNetif.h"
@@ -69,6 +68,8 @@ void setup()
   {
     PPPoSNetif::Config pppCfg;
     pppCfg.logger = kEnablePppLogs ? debugOut : nullptr;
+    // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+    // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
     if (!pppos.begin(*pppIo, pppCfg))
       logLine("pppos.begin failed");
     else

@@ -1,6 +1,5 @@
-// en: Minimal device-side EspNowIP example.
-// ja: device 側 EspNowIP の最小構成サンプル。
-
+// en: Bring up an IP endpoint on the bus
+// ja: Bus上のIP Endpointを開始する
 #include <Arduino.h>
 #include <EspNowIP.h>
 #include <esp_netif.h>
@@ -42,7 +41,9 @@ void setup()
   EspNowIP::Config cfg;
   cfg.groupName = "espnow-ip-demo";
   cfg.mtu = 1420;
-  cfg.autoJoinIntervalMs = 0; // en: Do not advertise from the device side / ja: device 側は自分から募集しない
+  // en: Do not advertise from the device side
+  // ja: device 側は自分から募集しない
+  cfg.autoJoinIntervalMs = 0;
   // cfg.channel = 6;                  // Optional: fix the channel on all nodes when needed.
   // cfg.phyRate = WIFI_PHY_RATE_1M_L; // Optional: lower PHY rate example for longer range.
 
@@ -50,6 +51,8 @@ void setup()
   printSelfInfo();
   Serial.println();
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!ip.begin(cfg))
   {
     Serial.println("ip.begin failed");

@@ -1,7 +1,9 @@
+// en: Monitor multiple serial sessions
+// ja: 複数のシリアル Sessionを監視する
 #include <EspNowSerial.h>
 
 // en: Controller-side example that scans all sessions and forwards RX to USB Serial.
-// ja: 全 session を走査し、受信データを USB Serial へ転送する controller 側サンプル。
+// ja: 全 session を走査し、受信データを USB シリアル へ転送する controller 側サンプル。
 
 EspNowSerial serialHub;
 EspNowSerialPort monitorPort;
@@ -16,6 +18,8 @@ void setup()
   EspNowSerial::Config cfg;
   cfg.groupName = "espnow-serial-demo";
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!serialHub.begin(cfg))
   {
     Serial.println("serialHub.begin failed");

@@ -1,3 +1,5 @@
+// en: Use a reduced-resource broadcast configuration
+// ja: 資源を抑えたBroadcast設定を使う
 #include <EspNowBus.h>
 
 // en: Minimal-footprint broadcast. AppAck OFF, encryption OFF, peer-auth OFF, payload capped at 250 bytes.
@@ -23,12 +25,20 @@ void setup()
   cfg.groupName = "espnow-demo_" __FILE__;            // en: group identifier / ja: グループ識別子
   cfg.useEncryption = false;                          // en: encryption OFF / ja: 暗号化無効
   cfg.enablePeerAuth = false;                         // en: peer auth OFF / ja: peer 認証無効
-  cfg.enableAppAck = false;                           // en: AppAck OFF (physical ACK only) / ja: AppAck 無効（物理 ACK のみ）
+  // en: AppAck OFF (physical ACK only)
+  // ja: AppAck 無効（物理 ACK のみ）
+  cfg.enableAppAck = false;
   cfg.maxPayloadBytes = EspNowBus::kMaxPayloadLegacy; // en: cap buffers at 250 bytes / ja: 250 バイトに制限
-  cfg.maxQueueLength = 4;                             // en: shrink queue to reduce memory / ja: キュー長を縮小しメモリ削減
+  // en: shrink queue to reduce memory
+  // ja: キュー長を縮小しメモリ削減
+  cfg.maxQueueLength = 4;
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");

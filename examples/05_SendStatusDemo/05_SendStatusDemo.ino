@@ -1,3 +1,5 @@
+// en: Observe queued, retry and completion status
+// ja: Queue受理・再送・完了の状態を確認する
 #include <EspNowBus.h>
 
 // en: Demonstrate SendStatus handling via switch and logging.
@@ -67,12 +69,20 @@ void setup()
   delay(500);
 
   EspNowBus::Config cfg;
-  cfg.groupName = "espnow-demo_" __FILE__; // en: Group name for communication / ja: 同じグループ名同士で通信可能
+  // en: Group name for communication
+  // ja: 同じグループ名同士で通信可能
+  cfg.groupName = "espnow-demo_" __FILE__;
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
+  // en: Observe asynchronous progress/completion and distinguish physical from application acknowledgement.
+  // ja: 非同期の途中経過と完了を確認し、物理送信とApplication ACKを区別します。
   bus.onSendResult(onSendResult);
   bus.onAppAck(onAppAck);
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");

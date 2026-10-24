@@ -1,3 +1,5 @@
+// en: Leave and observe peer-state changes
+// ja: 明示的にLeaveして相手状態の変化を見る
 #include <EspNowBus.h>
 
 // en: Demo for explicit leave/end & restart via serial commands.
@@ -83,9 +85,15 @@ void startBus()
   }
   EspNowBus::Config cfg;
   cfg.groupName = "espnow-demo_" __FILE__; // en: required groupName string / ja: 必須のグループ名文字列
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
+  // en: Observe asynchronous progress/completion and distinguish physical from application acknowledgement.
+  // ja: 非同期の途中経過と完了を確認し、物理送信とApplication ACKを区別します。
   bus.onSendResult(onSendResult);
   bus.onJoinEvent(onJoinEvent);
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");
@@ -123,7 +131,9 @@ void loop()
     char c = Serial.read();
     if (c >= 'A' && c <= 'Z')
     {
-      c = static_cast<char>(c - 'A' + 'a'); // en: enforce lowercase for commands / ja: コマンドは小文字に変換
+      // en: enforce lowercase for commands
+      // ja: コマンドは小文字に変換
+      c = static_cast<char>(c - 'A' + 'a');
     }
     switch (c)
     {

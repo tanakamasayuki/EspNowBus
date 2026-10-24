@@ -1,6 +1,5 @@
-// en: Gateway-side EspNowIP example using an AT modem PPP uplink.
-// ja: AT モデム PPP uplink を使う gateway 側 EspNowIP サンプル。
-
+// en: Connect a gateway with a PPP modem
+// ja: PPP ModemでGatewayを接続する
 #include <Arduino.h>
 #include <EspNowIP.h>
 #include <PPP.h>
@@ -71,6 +70,8 @@ void setup()
   PPP.setPins(PPP_MODEM_TX, PPP_MODEM_RX, PPP_MODEM_RTS, PPP_MODEM_CTS, PPP_MODEM_FC);
 
   Serial.println("Starting modem PPP...");
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   PPP.begin(PPP_MODEM_MODEL);
 
   Serial.print("Model: ");

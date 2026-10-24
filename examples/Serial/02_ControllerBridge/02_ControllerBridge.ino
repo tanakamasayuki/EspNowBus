@@ -1,3 +1,5 @@
+// en: Bridge a controller to a remote serial endpoint
+// ja: Controllerから遠隔シリアル Endpointへ渡す
 #include <EspNowSerial.h>
 #include <WiFi.h>
 
@@ -140,6 +142,8 @@ void setup()
   EspNowSerial::Config cfg;
   cfg.groupName = "espnow-serial-demo";
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!serialHub.begin(cfg))
   {
     Serial.println("serialHub.begin failed");
@@ -161,7 +165,7 @@ void loop()
   while (Serial.available() > 0)
   {
     // en: Read one line from USB Serial and either handle it locally or forward it.
-    // ja: USB Serial から 1 行読み、ローカル処理または転送を行う。
+    // ja: USB シリアル から 1 行読み、ローカル処理または転送を行う。
     char c = static_cast<char>(Serial.read());
     if (c == '\r')
     {
@@ -177,7 +181,7 @@ void loop()
   }
 
   // en: Forward RX from the currently selected session to USB Serial.
-  // ja: 現在選択中の session からの受信を USB Serial へ流す。
+  // ja: 現在選択中の session からの受信を USB シリアル へ流す。
   while (controlSerial.available() > 0)
   {
     // en: Forward device-side output to the PC side USB serial.

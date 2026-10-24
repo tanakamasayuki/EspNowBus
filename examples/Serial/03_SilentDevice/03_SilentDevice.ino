@@ -1,3 +1,5 @@
+// en: Observe a device that sends no periodic text
+// ja: 定期文字列を送らないDeviceを確認する
 #include <EspNowSerial.h>
 #include <WiFi.h>
 
@@ -19,6 +21,8 @@ void setup()
   // ja: 想定ポリシー例: device 側は自分から募集しない。
   cfg.advertise = false;
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!serialHub.begin(cfg))
   {
     Serial.println("serialHub.begin failed");
@@ -40,7 +44,7 @@ void setup()
 void loop()
 {
   // en: Regular poll() calls are still recommended even if port access can trigger fallback processing.
-  // ja: Port access 側の補助処理に頼らず、ここでも定期 poll() を推奨。
+  // ja: ポート access 側の補助処理に頼らず、ここでも定期 poll() を推奨。
   serialHub.poll();
 
   static uint32_t lastReport = 0;
@@ -70,7 +74,7 @@ void loop()
     }
 
     // en: Echo received bytes both to USB Serial and back to the controller session.
-    // ja: 受信 byte を USB Serial に出しつつ controller session にもそのまま返す。
+    // ja: 受信 byte を USB シリアル に出しつつ controller session にもそのまま返す。
     Serial.write(static_cast<uint8_t>(c));
     controlSerial.write(static_cast<uint8_t>(c));
   }

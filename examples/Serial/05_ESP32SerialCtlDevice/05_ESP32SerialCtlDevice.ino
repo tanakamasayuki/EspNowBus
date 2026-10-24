@@ -1,9 +1,11 @@
+// en: Expose a serial command device through the bus
+// ja: シリアル Command DeviceをBus越しに使う
 #include <ESP32SerialCtl.h>
 #include <EspNowSerial.h>
 #include <WiFi.h>
 
 // en: Device-side example that exposes ESP32SerialCtl over Serial over EspNow.
-// ja: ESP32SerialCtl を Serial over EspNow 越しに公開する device 側サンプル。
+// ja: ESP32SerialCtl を シリアル over EspNow 越しに公開する device 側サンプル。
 
 EspNowSerial serialHub;
 EspNowSerialPort controlSerial;
@@ -23,6 +25,8 @@ void setup()
   // ja: device 側は自分から募集せず、controller 側の募集にだけ接続する。
   cfg.advertise = false;
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!serialHub.begin(cfg))
   {
     Serial.println("serialHub.begin failed");
@@ -47,5 +51,7 @@ void loop()
   // en: Keep the hub progressing regularly, then let ESP32SerialCtl service the selected session.
   // ja: hub を定期的に進めたうえで、選択済み session 上で ESP32SerialCtl を処理する。
   serialHub.poll();
+  // en: Process pending commands regularly; blocking the caller postpones new input.
+  // ja: 保留コマンドを定期的に処理します。呼び出し元を止めると次の入力も遅れます。
   remoteCli.service();
 }

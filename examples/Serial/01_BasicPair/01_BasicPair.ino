@@ -1,8 +1,10 @@
+// en: Run a pair of serial bus endpoints
+// ja: シリアル Bus Endpointの組を動かす
 #include <EspNowSerial.h>
 #include <WiFi.h>
 
 // en: Minimal two-node Serial over EspNow example.
-// ja: Serial over EspNow の最小 2 ノード構成サンプル。
+// ja: シリアル over EspNow の最小 2 ノード構成サンプル。
 
 EspNowSerial serialHub;
 EspNowSerialPort controlSerial;
@@ -13,10 +15,12 @@ void setup()
   delay(500);
 
   // en: Shared group name for the Serial over EspNow link.
-  // ja: Serial over EspNow で共有するグループ名。
+  // ja: シリアル over EspNow で共有するグループ名。
   EspNowSerial::Config cfg;
   cfg.groupName = "espnow-serial-demo";
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!serialHub.begin(cfg))
   {
     Serial.println("serialHub.begin failed");
@@ -38,7 +42,7 @@ void loop()
   //
   // en: Port access may internally trigger a lightweight poll as a fallback,
   //     but relying on that shifts processing timing and makes behavior less predictable.
-  // ja: Port への access 時にも内部で軽い poll が走る想定だが、
+  // ja: ポート への access 時にも内部で軽い poll が走る想定だが、
   //     それに頼ると処理タイミングがずれて挙動が読みにくくなるため非推奨。
   serialHub.poll();
 

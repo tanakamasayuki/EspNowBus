@@ -1,6 +1,5 @@
-// en: Gateway-side EspNowIP example using Wi-Fi STA uplink.
-// ja: Wi-Fi STA uplink を使う gateway 側 EspNowIP サンプル。
-
+// en: Connect a bus gateway through Wi-Fi STA
+// ja: Wi-Fi STAでBus Gatewayを接続する
 #include <Arduino.h>
 #include <WiFi.h>
 #include <EspNowIP.h>
@@ -106,6 +105,8 @@ void loop()
       cfg.mtu = 1420;
       // cfg.channel = 6;                  // Optional: fix ESP-NOW to the same channel as the STA uplink.
       // cfg.phyRate = WIFI_PHY_RATE_1M_L; // Optional: lower PHY rate example for longer range.
+      // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+      // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
       gatewayStarted = gateway.begin(cfg);
       Serial.printf("gateway.begin -> %d\n", gatewayStarted);
     }

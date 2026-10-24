@@ -1,3 +1,5 @@
+// en: Inspect an explicit bus configuration template
+// ja: Bus設定を明示したTemplateを確認する
 #include <EspNowBus.h>
 
 // en: Template sketch with every Config field set to its default value, based on JoinAndUnicast.
@@ -25,18 +27,26 @@ void setup()
   // en: Security / ACK settings (all defaults)
   // ja: セキュリティと ACK の設定（すべて既定値）
   cfg.useEncryption = true;      // en: enable ESP-NOW encryption / ja: ESP-NOW 暗号化を有効
-  cfg.enablePeerAuth = true;     // en: authenticate peers on join / ja: JOIN 時に peer を認証
-  cfg.enableAppAck = true;       // en: app-level ACK on unicast / ja: ユニキャストで AppAck を利用
+  // en: authenticate peers on join
+  // ja: JOIN 時に peer を認証
+  cfg.enablePeerAuth = true;
+  // en: app-level ACK on unicast
+  // ja: ユニキャストで AppAck を利用
+  cfg.enableAppAck = true;
 
   // en: Radio settings
   // ja: 無線関連の設定
-  cfg.channel = -1;                  // en: -1 auto → 1-13 from group hash / ja: -1 自動（ハッシュで 1〜13 を決定）
+  // en: -1 auto → 1-13 from group hash
+  // ja: -1 自動（ハッシュで 1〜13 を決定）
+  cfg.channel = -1;
   cfg.phyRate = WIFI_PHY_RATE_11M_L; // en: 11M long-range default / ja: 11M(L) が既定
 
   // en: Queue / payload / timeouts
   // ja: キュー / ペイロード / タイムアウト設定
   cfg.maxQueueLength = 16;                              // en: TX queue depth / ja: 送信キュー長
-  cfg.maxPayloadBytes = EspNowBus::kMaxPayloadDefault;  // en: max payload bytes (1470) / ja: 最大ペイロード 1470 バイト
+  // en: max payload bytes (1470)
+  // ja: 最大ペイロード 1470 バイト
+  cfg.maxPayloadBytes = EspNowBus::kMaxPayloadDefault;
   cfg.sendTimeoutMs = 50;                               // en: enqueue wait before fail / ja: キュー投入待ちタイムアウト
   cfg.maxRetries = 1;                                   // en: resend count for AppAck / ja: AppAck 用の再送回数
   cfg.retryDelayMs = 0;                                 // en: delay between retries / ja: 再送間隔
@@ -49,16 +59,24 @@ void setup()
 
   // en: Task config
   // ja: タスク設定
-  cfg.taskCore = ARDUINO_RUNNING_CORE; // en: -1 unpinned; 0/1 pin core / ja: -1 非固定、0/1 でコア固定
+  // en: -1 unpinned; 0/1 pin core
+  // ja: -1 非固定、0/1 でコア固定
+  cfg.taskCore = ARDUINO_RUNNING_CORE;
   cfg.taskPriority = 3;                // en: worker task priority / ja: ワーカタスク優先度
   cfg.taskStackSize = 4096;            // en: worker stack size bytes / ja: ワーカスタックサイズ（バイト）
 
   // en: Broadcast replay window
   // ja: ブロードキャストのリプレイウィンドウ
-  cfg.replayWindowBcast = 32;          // en: anti-replay window per sender / ja: 送信者ごとのリプレイ対策幅
+  // en: anti-replay window per sender
+  // ja: 送信者ごとのリプレイ対策幅
+  cfg.replayWindowBcast = 32;
 
+  // en: Register a receive observer; use explicit payload length and copy bytes needed beyond the callback.
+  // ja: 受信処理を登録します。データ長を使い、コールバック後に必要なByteはコピーします。
   bus.onReceive(onReceive);
 
+  // en: Initialize this component after its prerequisites; inspect the returned status where provided.
+  // ja: 前提となる機器を準備してから初期化し、結果を返すAPIでは成否を確認します。
   if (!bus.begin(cfg))
   {
     Serial.println("begin failed");
